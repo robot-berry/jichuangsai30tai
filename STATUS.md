@@ -89,6 +89,14 @@ Board-specific notes from the current 30TAI:
   - `integrated_board_model`: actors start, `[AIM FOLLOW CONFIG]` appears, then the same `ImageMake Timeout` / `accept 0 data`
   - `integrated_vtc`: actors start and no `ImageMake Timeout` appears during the short test, but no real target detections are produced
 - This points to real SDI/camera input state as the current blocker before closed-loop target following can be verified.
+- `tools/run_board_synthetic_control_test.ps1` was added for controller-only board validation when the camera path is unavailable.
+- Latest synthetic control test built `aim_follow_control` directly on 30TAI and passed:
+  - far synthetic target -> positive chassis RPM
+  - close synthetic target -> negative chassis RPM
+  - right/up synthetic target -> yaw/pitch command changes
+  - lost synthetic target -> chassis stop
+  - generated `0x201` and `0x38A` CAN payload bytes
+- The synthetic test did not send CAN frames by default. `can0` was observed as `ERROR-PASSIVE`, so real CAN sending should wait until the bus is `ERROR-ACTIVE` with wheels lifted.
 
 ## Next required board steps
 
@@ -103,6 +111,12 @@ If the app starts but no target logs appear, run:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\tools\diagnose_30tai_video_input.ps1 -SshKey .\.ssh_board\id_ed25519_30tai
+```
+
+To verify the aim/follow controller on 30TAI without using the camera path:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\run_board_synthetic_control_test.ps1 -SshKey .\.ssh_board\id_ed25519_30tai
 ```
 
 The lower-level manual sequence remains:

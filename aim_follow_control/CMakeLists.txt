@@ -21,3 +21,12 @@ target_link_libraries(aim_follow_controller_test
     PRIVATE
     aim_follow_control
 )
+
+add_executable(aim_follow_synthetic_board_test
+    test/aim_follow_synthetic_board_test.cpp
+)
+
+target_link_libraries(aim_follow_synthetic_board_test
+    PRIVATE
+    aim_follow_control
+)

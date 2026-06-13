@@ -37,6 +37,7 @@ tools/
   run_acceptance_preflight.ps1
   run_board_acceptance.ps1
   diagnose_30tai_video_input.ps1
+  run_board_synthetic_control_test.ps1
   write_acceptance_report.ps1
   analyze_smoke_logs.ps1
 
@@ -136,6 +137,14 @@ powershell -ExecutionPolicy Bypass -File .\tools\diagnose_30tai_video_input.ps1 
 ```
 
 This compares the unmodified board PLin demo, the integrated board-model config, and a `vtc:true` test-pattern config.
+
+When the real SDI input is unavailable, the controller itself can still be verified on 30TAI with synthetic target observations:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\run_board_synthetic_control_test.ps1 -SshKey .\.ssh_board\id_ed25519_30tai
+```
+
+This builds `aim_follow_control` on the board and verifies forward/backward distance following, yaw/pitch aiming, lost-target stop behavior, and the generated `0x201` / `0x38A` CAN payload bytes. It does not send CAN by default. Use `-SendCan -ConfigureCan` only with the wheels lifted and the CAN bus confirmed healthy.
 
 For the final lifted-wheel and ground tests, follow `docs/BOARD_ACCEPTANCE_RUNBOOK.md`.
 Use `docs/TUNING_LOG_TEMPLATE.md` to record final parameters and physical-test evidence.

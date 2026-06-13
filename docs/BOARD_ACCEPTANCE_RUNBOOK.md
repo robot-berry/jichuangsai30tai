@@ -126,11 +126,48 @@ Current observed board evidence:
 - `integrated_vtc` runs without `ImageMake Timeout`, but it does not provide a real target frame, so it cannot prove final target following.
 - `/dev/video0` is not a normal V4L2 capture device on this board image; the PLin demo depends on the board-specific PL camera path.
 
-## 4. Safe Motion Test
+## 4. Controller-Only Board Test
+
+If real SDI input is not available, run the synthetic controller test before any motion test:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\run_board_synthetic_control_test.ps1 -SshKey .\.ssh_board\id_ed25519_30tai
+```
+
+This test uploads only `aim_follow_control`, builds it on 30TAI, and feeds synthetic target observations to the controller.
+
+Expected evidence in `synthetic_control.log`:
+
+| Evidence | Meaning |
+| --- | --- |
+| `[SYNTH SUMMARY] ... result=PASS` | Controller produced all required behavior classes |
+| `target_far_forward` with positive motor RPM | Distance-following forward command works |
+| `target_close_backward` with negative motor RPM | Distance-following backward command works |
+| `target_right_yaw` with yaw different from center | Aiming yaw command responds to image error |
+| `target_up_pitch` with pitch different from center | Aiming pitch command responds to image error |
+| `[SYNTH CAN 0x201]` | Chassis CAN payload bytes are generated |
+| `[SYNTH CAN 0x38A]` | Gimbal CAN payload bytes are generated |
+
+By default this test does not send CAN frames. To send frames, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\run_board_synthetic_control_test.ps1 -SshKey .\.ssh_board\id_ed25519_30tai -ConfigureCan -SendCan
+```
+
+Only use `-SendCan` when:
+
+- wheels are lifted,
+- the CAN bus is wired to the correct controller,
+- `ip -details link show can0` is `ERROR-ACTIVE`,
+- the vehicle can be stopped immediately.
+
+If `can0` is `ERROR-PASSIVE` or bus errors increase, fix CAN wiring, termination, bitrate, and controller mode before sending motion commands.
+
+## 5. Safe Motion Test
 
 The first real motion test must be done with wheels lifted.
 
-### 4.1 Gimbal Direction Test
+### 5.1 Gimbal Direction Test
 
 Place the target in different image regions and observe the gimbal command.
 
@@ -147,7 +184,7 @@ Pass condition:
 - The gimbal does not oscillate violently near the center.
 - `[AIM FOLLOW]` logs show nonzero `ex` or `ey` when the target is off center.
 
-### 4.2 Chassis Direction Test
+### 5.2 Chassis Direction Test
 
 Keep the wheels lifted. Use a known-width target and move it to known distances.
 
@@ -170,7 +207,7 @@ If only one motor moves or the vehicle rotates in place:
 - Check `AIM_FOLLOW_MOTOR2_FORWARD_SIGN`.
 - Check the chassis CAN wiring and motor controller mode.
 
-## 5. Ground Test
+## 6. Ground Test
 
 Only run this after the lifted-wheel test passes.
 
@@ -195,7 +232,7 @@ Ground-test matrix:
 
 Acceptance requires all five tests to pass.
 
-## 6. Evidence Archive
+## 7. Evidence Archive
 
 After a successful run, keep the fetched smoke-log directory.
 
@@ -213,10 +250,11 @@ Recommended final evidence package:
 - Latest Git commit hash of `jichuangsai30tai_aim_follow`.
 - Integrated PLin project commit or archive name.
 - `acceptance_report.md`.
+- Synthetic controller log with `[SYNTH SUMMARY] ... result=PASS`.
 - At least one saved HDMI frame showing the detection box and distance text.
 - Filled tuning log copied from `docs/TUNING_LOG_TEMPLATE.md`.
 
-## 7. Completion Criteria
+## 8. Completion Criteria
 
 The project can be treated as accepted only when:
 
