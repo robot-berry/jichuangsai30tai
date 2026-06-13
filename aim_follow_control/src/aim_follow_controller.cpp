@@ -82,6 +82,58 @@ void TargetSelector::remember(const TargetCandidate &candidate) {
     last_area_ = candidate.area;
 }
 
+MonocularDistanceEstimator::MonocularDistanceEstimator(const DistanceEstimatorConfig &config)
+    : cfg_(config) {}
+
+void MonocularDistanceEstimator::reset() {
+    filtered_distance_m_ = -1.0f;
+}
+
+void MonocularDistanceEstimator::setConfig(const DistanceEstimatorConfig &config) {
+    cfg_ = config;
+    reset();
+}
+
+const DistanceEstimatorConfig &MonocularDistanceEstimator::config() const {
+    return cfg_;
+}
+
+DistanceEstimate MonocularDistanceEstimator::update(float box_width_px) {
+    DistanceEstimate estimate;
+    if (box_width_px < cfg_.min_box_width_px ||
+        cfg_.target_real_width_m <= 0.0f ||
+        cfg_.focal_length_px <= 0.0f ||
+        !std::isfinite(box_width_px)) {
+        estimate.filtered_distance_m = filtered_distance_m_;
+        return estimate;
+    }
+
+    const float raw_distance = cfg_.target_real_width_m * cfg_.focal_length_px / box_width_px;
+    if (raw_distance <= 0.0f || !std::isfinite(raw_distance)) {
+        estimate.filtered_distance_m = filtered_distance_m_;
+        return estimate;
+    }
+
+    const float alpha = clampAlpha(cfg_.filter_alpha);
+    if (filtered_distance_m_ <= 0.0f || !std::isfinite(filtered_distance_m_)) {
+        filtered_distance_m_ = raw_distance;
+    } else {
+        filtered_distance_m_ = alpha * raw_distance + (1.0f - alpha) * filtered_distance_m_;
+    }
+
+    estimate.valid = true;
+    estimate.raw_distance_m = raw_distance;
+    estimate.filtered_distance_m = filtered_distance_m_;
+    return estimate;
+}
+
+float MonocularDistanceEstimator::clampAlpha(float alpha) const {
+    if (!std::isfinite(alpha)) {
+        return 1.0f;
+    }
+    return std::clamp(alpha, 0.0f, 1.0f);
+}
+
 AimFollowController::AimFollowController(const ControlConfig &config)
     : cfg_(config),
       last_yaw_(config.center_yaw),

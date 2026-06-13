@@ -22,8 +22,14 @@ It is not a full copy of the original PLin + SingleNet + HDMI demo application. 
   - fixed-distance chassis RPM command
   - target-lost safety behavior
   - command deadzone and step limiting
+- `MonocularDistanceEstimator` implements:
+  - known-width pinhole-camera distance estimation
+  - first-order low-pass distance filtering
+  - invalid-box handling that preserves the last filtered value for display/debug continuity
 - `TargetSelector` implements lightweight target continuity.
 - Local unit test covers:
+  - monocular distance estimation from detection-box width
+  - distance low-pass filtering and invalid-box behavior
   - centered target hold
   - target too far -> forward command
   - target too close -> backward command
@@ -91,6 +97,7 @@ Board-specific notes from the current 30TAI:
 - This points to real SDI/camera input state as the current blocker before closed-loop target following can be verified.
 - `tools/run_board_synthetic_control_test.ps1` was added for controller-only board validation when the camera path is unavailable.
 - Latest synthetic control test built `aim_follow_control` directly on 30TAI and passed:
+  - synthetic box width -> monocular distance estimate -> follow controller path
   - far synthetic target -> positive chassis RPM
   - close synthetic target -> negative chassis RPM
   - right/up synthetic target -> yaw/pitch command changes

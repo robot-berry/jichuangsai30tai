@@ -52,6 +52,36 @@ struct TargetObservation {
     float timestamp_s = 0.0f;
 };
 
+struct DistanceEstimatorConfig {
+    float target_real_width_m = 0.24f;
+    float focal_length_px = 553.0f;
+    float min_box_width_px = 1.0f;
+    float filter_alpha = 0.30f;
+};
+
+struct DistanceEstimate {
+    bool valid = false;
+    float raw_distance_m = -1.0f;
+    float filtered_distance_m = -1.0f;
+};
+
+class MonocularDistanceEstimator {
+public:
+    explicit MonocularDistanceEstimator(const DistanceEstimatorConfig &config = DistanceEstimatorConfig());
+
+    void reset();
+    void setConfig(const DistanceEstimatorConfig &config);
+    const DistanceEstimatorConfig &config() const;
+
+    DistanceEstimate update(float box_width_px);
+
+private:
+    DistanceEstimatorConfig cfg_;
+    float filtered_distance_m_ = -1.0f;
+
+    float clampAlpha(float alpha) const;
+};
+
 struct ControlConfig {
     // HDMI/display coordinate size used by the post-process stage.
     float frame_width = 1920.0f;

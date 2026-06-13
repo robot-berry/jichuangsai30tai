@@ -5,9 +5,11 @@ This is a clean, goal-focused project for the 30TAI target aiming and fixed-dist
 It is not a copy of the original PLin + SingleNet + HDMI demo project. Instead, it contains the reusable algorithm module, tests, integration notes, and board-side validation scripts needed to add:
 
 - image-center based gimbal aiming
-- monocular-distance based fixed-distance chassis following
+- monocular distance estimation from detection-box width
+- fixed-distance chassis following
 - lightweight target continuity selection
 - target-lost safety behavior
+- reusable distance-estimation and filtering module
 - 30TAI build, smoke-test, and log-analysis workflow
 
 Current completion and board-validation status is tracked in `STATUS.md`.
@@ -21,6 +23,7 @@ aim_follow_control/
   include/aim_follow_controller.hpp
   src/aim_follow_controller.cpp
   test/aim_follow_controller_test.cpp
+  test/aim_follow_synthetic_board_test.cpp
   test/run_30tai_smoke_test.sh
   README.md
   BOARD_INTEGRATION.md
@@ -147,6 +150,7 @@ powershell -ExecutionPolicy Bypass -File .\tools\run_board_synthetic_control_tes
 ```
 
 This builds `aim_follow_control` on the board and verifies forward/backward distance following, yaw/pitch aiming, lost-target stop behavior, and the generated `0x201` / `0x38A` CAN payload bytes. It does not send CAN by default. Use `-SendCan -ConfigureCan` only with the wheels lifted and the CAN bus confirmed healthy.
+The synthetic test uses the same monocular distance equation as the integrated app: `distance = target_real_width_m * focal_length_px / box_width_px`.
 
 Check CAN bus health before any command that may move hardware:
 

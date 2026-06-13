@@ -1,8 +1,17 @@
 #include "aim_follow_controller.hpp"
 
 #include <cassert>
+#include <cmath>
 #include <iostream>
 #include <vector>
+
+namespace {
+
+bool near(float a, float b, float eps = 1e-3f) {
+    return std::fabs(a - b) <= eps;
+}
+
+}
 
 int main() {
     aim_follow::TargetSelectorConfig selector_cfg;
@@ -35,6 +44,27 @@ int main() {
         assert(selector.select({}) == -1);
     }
     assert(selector.select(first_candidates) == 1);
+
+    aim_follow::DistanceEstimatorConfig distance_cfg;
+    distance_cfg.target_real_width_m = 0.24f;
+    distance_cfg.focal_length_px = 553.0f;
+    distance_cfg.min_box_width_px = 1.0f;
+    distance_cfg.filter_alpha = 0.30f;
+    aim_follow::MonocularDistanceEstimator distance_estimator(distance_cfg);
+
+    const auto one_meter = distance_estimator.update(0.24f * 553.0f / 1.0f);
+    assert(one_meter.valid);
+    assert(near(one_meter.raw_distance_m, 1.0f));
+    assert(near(one_meter.filtered_distance_m, 1.0f));
+
+    const auto two_meter = distance_estimator.update(0.24f * 553.0f / 2.0f);
+    assert(two_meter.valid);
+    assert(near(two_meter.raw_distance_m, 2.0f));
+    assert(near(two_meter.filtered_distance_m, 1.3f));
+
+    const auto invalid_box = distance_estimator.update(0.0f);
+    assert(!invalid_box.valid);
+    assert(near(invalid_box.filtered_distance_m, 1.3f));
 
     aim_follow::ControlConfig cfg;
     cfg.frame_width = 1920.0f;

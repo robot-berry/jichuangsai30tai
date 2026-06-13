@@ -186,14 +186,24 @@ std::vector<Scenario> buildScenarios() {
     const float cx = 960.0f;
     const float cy = 540.0f;
     float t = 0.05f;
+    aim_follow::DistanceEstimatorConfig distance_cfg;
+    distance_cfg.filter_alpha = 1.0f;
+    aim_follow::MonocularDistanceEstimator distance_estimator(distance_cfg);
 
     auto makeObs = [&](bool valid, float x, float y, float distance_m) {
         aim_follow::TargetObservation obs;
         obs.valid = valid;
         obs.center_x = x;
         obs.center_y = y;
-        obs.box_width = 120.0f;
-        obs.distance_m = distance_m;
+        if (valid && distance_m > 0.0f) {
+            obs.box_width = distance_estimator.config().target_real_width_m *
+                            distance_estimator.config().focal_length_px /
+                            distance_m;
+            obs.distance_m = distance_estimator.update(obs.box_width).filtered_distance_m;
+        } else {
+            obs.box_width = 0.0f;
+            obs.distance_m = -1.0f;
+        }
         obs.timestamp_s = t;
         t += 0.05f;
         return obs;
