@@ -141,10 +141,11 @@ Board-specific notes from the current 30TAI:
 - `tools/run_board_readiness_report.ps1` was added to combine SSH, CAN, synthetic-controller, and video-input gates into one `readiness_report.md`.
 - Latest full readiness report result was still `NO` until the camera input path is fixed:
   - SSH connection: PASS
-  - CAN bus healthy: PASS in the latest standalone CAN diagnosis
+  - CAN bus healthy: FAIL in the latest full report because `can0` returned to `ERROR-PASSIVE`
   - controller synthetic behavior: PASS
   - real video input: FAIL
   - SDI mode probe with `-RunSdiProbe`: NO_CANDIDATE
+  - SDI register dump with `-RunSdiRegisterDump`: CONFIRMS_INPUT_LOSS
 
 ## Next required board steps
 

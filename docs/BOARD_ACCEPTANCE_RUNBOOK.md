@@ -79,6 +79,12 @@ To include the common SDI resolution/fps probe in the same report:
 powershell -ExecutionPolicy Bypass -File .\tools\run_board_readiness_report.ps1 -SshKey .\.ssh_board\id_ed25519_30tai -RunSdiProbe
 ```
 
+To include both the SDI mode probe and read-only SDICamera register snapshots:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\run_board_readiness_report.ps1 -SshKey .\.ssh_board\id_ed25519_30tai -RunSdiProbe -RunSdiRegisterDump
+```
+
 The report combines:
 
 - SSH reachability,
@@ -181,6 +187,7 @@ Current observed board evidence:
 - Temporary probes of `1920x1080@60`, `1920x1080@30`, `1280x720@60`, and `1280x720@30` all still produced `ImageMake Timeout` / `accept 0 data`, so the current evidence points beyond a simple YAML resolution/fps mismatch.
 - The combined readiness report can include this SDI mode probe with `-RunSdiProbe`; the current observed result is `NO_CANDIDATE`.
 - Read-only SDICamera register snapshots show `done_status=0x00000000` after real SDI runs and `done_status=0x00000001` after VTC runs. This confirms the internal test path completes but the external `SDI_IN_0` path does not assert frame capture done.
+- The combined readiness report can include this register evidence with `-RunSdiRegisterDump`; the current observed result is `CONFIRMS_INPUT_LOSS`.
 
 ## 5. Controller-Only Board Test
 

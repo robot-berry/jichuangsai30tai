@@ -9,10 +9,12 @@ param(
     [int]$VideoRunSeconds = 8,
     [int]$CanObserveSeconds = 3,
     [int]$SdiProbeRunSeconds = 5,
+    [int]$SdiRegisterRunSeconds = 4,
     [string]$SdiProbeModes = "1920x1080@60,1920x1080@30,1280x720@60,1280x720@30",
     [switch]$SkipVideo,
     [switch]$SkipSynthetic,
     [switch]$RunSdiProbe,
+    [switch]$RunSdiRegisterDump,
     [switch]$DryRun
 )
 
@@ -33,6 +35,7 @@ $CanLogRoot = Join-Path $RunReportDir "can"
 $VideoLogRoot = Join-Path $RunReportDir "video"
 $SyntheticLogRoot = Join-Path $RunReportDir "synthetic"
 $SdiProbeLogRoot = Join-Path $RunReportDir "sdi_probe"
+$SdiRegisterLogRoot = Join-Path $RunReportDir "sdi_registers"
 
 function Invoke-Tool {
     param(
@@ -80,13 +83,14 @@ Write-Host "RemoteDir:  $RemoteDir"
 Write-Host "SkipVideo:  $SkipVideo"
 Write-Host "SkipSynth:  $SkipSynthetic"
 Write-Host "RunSdiProbe:$RunSdiProbe"
+Write-Host "RunSdiRegs: $RunSdiRegisterDump"
 Write-Host "DryRun:     $DryRun"
 if ($SshKey) {
     Write-Host "SSH key:    $SshKey"
 }
 
 if (-not $DryRun) {
-    New-Item -ItemType Directory -Force -Path $CanLogRoot, $VideoLogRoot, $SyntheticLogRoot, $SdiProbeLogRoot | Out-Null
+    New-Item -ItemType Directory -Force -Path $CanLogRoot, $VideoLogRoot, $SyntheticLogRoot, $SdiProbeLogRoot, $SdiRegisterLogRoot | Out-Null
 }
 
 $commonArgs = @(
@@ -166,6 +170,22 @@ if ($RunSdiProbe) {
     $sdiProbeRet = Invoke-Tool "SDI mode probe" $sdiProbeArgs
 }
 
+$sdiRegisterRet = 0
+if ($RunSdiRegisterDump) {
+    $sdiRegisterArgs = $commonArgs + @(
+        "-File", (Join-Path $RepoRoot "tools\dump_30tai_sdi_registers.ps1"),
+        "-BoardIp", $BoardIp,
+        "-User", $User,
+        "-RemoteDir", $RemoteDir,
+        "-RunSeconds", "$SdiRegisterRunSeconds",
+        "-LocalLogDir", $SdiRegisterLogRoot
+    )
+    if ($SshKey) {
+        $sdiRegisterArgs += @("-SshKey", $SshKey)
+    }
+    $sdiRegisterRet = Invoke-Tool "SDI register dump" $sdiRegisterArgs
+}
+
 if ($DryRun) {
     Write-Host ""
     Write-Host "Dry run finished. No report was written." -ForegroundColor Yellow
@@ -176,11 +196,13 @@ $canDir = Get-LatestDir $CanLogRoot
 $syntheticDir = Get-LatestDir $SyntheticLogRoot
 $videoDir = Get-LatestDir $VideoLogRoot
 $sdiProbeDir = Get-LatestDir $SdiProbeLogRoot
+$sdiRegisterDir = Get-LatestDir $SdiRegisterLogRoot
 
 $canSummary = if ($canDir) { Join-Path $canDir.FullName "summary.md" } else { "" }
 $syntheticLog = if ($syntheticDir) { Join-Path $syntheticDir.FullName "synthetic_control.log" } else { "" }
 $videoSummary = if ($videoDir) { Join-Path $videoDir.FullName "summary.md" } else { "" }
 $sdiProbeSummary = if ($sdiProbeDir) { Join-Path $sdiProbeDir.FullName "summary.md" } else { "" }
+$sdiRegisterSummary = if ($sdiRegisterDir) { Join-Path $sdiRegisterDir.FullName "summary.md" } else { "" }
 
 $canReady = Test-FileContains $canSummary "Result: CAN controller is active"
 $syntheticPass = (-not $SkipSynthetic) -and (Test-FileContains $syntheticLog "\[SYNTH SUMMARY\].*result=PASS")
@@ -190,8 +212,11 @@ $videoReady = (-not $SkipVideo) -and (
     -not (Test-FileContains $videoSummary "real SDI input loss")
 )
 $sdiProbeCandidate = $RunSdiProbe -and (Test-FileContains $sdiProbeSummary "Candidate modes without ImageMake zero-data errors")
+$sdiRegisterConfirmsExternalInputLoss = $RunSdiRegisterDump -and
+    (Test-FileContains $sdiRegisterSummary "after_real_sdi sdi0: done_status=0x00000000") -and
+    (Test-FileContains $sdiRegisterSummary "after_vtc sdi0: done_status=0x00000001")
 
-$overallReady = ($connectionRet -eq 0) -and ($canRet -eq 0) -and ($syntheticRet -eq 0) -and ($videoRet -eq 0) -and ($sdiProbeRet -eq 0) -and $canReady -and $syntheticPass -and $videoReady
+$overallReady = ($connectionRet -eq 0) -and ($canRet -eq 0) -and ($syntheticRet -eq 0) -and ($videoRet -eq 0) -and ($sdiProbeRet -eq 0) -and ($sdiRegisterRet -eq 0) -and $canReady -and $syntheticPass -and $videoReady
 
 $reportPath = Join-Path $RunReportDir "readiness_report.md"
 $readyText = if ($overallReady) { "YES" } else { "NO" }
@@ -200,9 +225,11 @@ $canText = if ($canReady) { "PASS" } else { "FAIL" }
 $syntheticText = if ($SkipSynthetic) { "SKIPPED" } elseif ($syntheticPass) { "PASS" } else { "FAIL" }
 $videoText = if ($SkipVideo) { "SKIPPED" } elseif ($videoReady) { "PASS" } else { "FAIL" }
 $sdiProbeText = if (-not $RunSdiProbe) { "SKIPPED" } elseif ($sdiProbeCandidate) { "CANDIDATE" } else { "NO_CANDIDATE" }
+$sdiRegisterText = if (-not $RunSdiRegisterDump) { "SKIPPED" } elseif ($sdiRegisterConfirmsExternalInputLoss) { "CONFIRMS_INPUT_LOSS" } else { "CHECK_LOGS" }
 $syntheticDirText = if ($syntheticDir) { $syntheticDir.FullName } else { "skipped" }
 $videoDirText = if ($videoDir) { $videoDir.FullName } else { "skipped" }
 $sdiProbeDirText = if ($sdiProbeDir) { $sdiProbeDir.FullName } else { "skipped" }
+$sdiRegisterDirText = if ($sdiRegisterDir) { $sdiRegisterDir.FullName } else { "skipped" }
 
 $report = @()
 $report += "# 30TAI Aim/Follow Readiness Report"
@@ -219,6 +246,7 @@ $report += "| CAN bus healthy | $canText | ``$canSummary`` |"
 $report += "| Controller synthetic behavior | $syntheticText | ``$syntheticLog`` |"
 $report += "| Real video input | $videoText | ``$videoSummary`` |"
 $report += "| SDI mode probe | $sdiProbeText | ``$sdiProbeSummary`` |"
+$report += "| SDI register dump | $sdiRegisterText | ``$sdiRegisterSummary`` |"
 $report += ""
 $report += "## Interpretation"
 $report += ""
@@ -234,10 +262,16 @@ if ($RunSdiProbe -and (-not $sdiProbeCandidate)) {
 if ($RunSdiProbe -and $sdiProbeCandidate) {
     $report += "- SDI mode probe found at least one candidate mode; inspect the probe summary and update the real camera config deliberately."
 }
+if ($RunSdiRegisterDump -and $sdiRegisterConfirmsExternalInputLoss) {
+    $report += "- SDI register dump confirms real SDI does not assert the capture done bit while VTC does."
+}
+if ($RunSdiRegisterDump -and (-not $sdiRegisterConfirmsExternalInputLoss)) {
+    $report += "- SDI register dump did not match the expected real-SDI/VTC done-bit pattern; inspect raw register logs."
+}
 if ((-not $SkipSynthetic) -and $syntheticPass) {
     $report += "- The aim/follow controller logic passes on 30TAI with synthetic target observations."
 }
-if ($SkipSynthetic -or $SkipVideo -or (-not $RunSdiProbe)) {
+if ($SkipSynthetic -or $SkipVideo -or (-not $RunSdiProbe) -or (-not $RunSdiRegisterDump)) {
     $report += "- One or more gates were skipped, so this report is not sufficient to approve full closed-loop testing."
 }
 if ($overallReady) {
@@ -250,6 +284,7 @@ $report += "- CAN: ``$($canDir.FullName)``"
 $report += "- Synthetic: ``$syntheticDirText``"
 $report += "- Video: ``$videoDirText``"
 $report += "- SDI mode probe: ``$sdiProbeDirText``"
+$report += "- SDI register dump: ``$sdiRegisterDirText``"
 
 $report | Set-Content -LiteralPath $reportPath -Encoding UTF8
 
