@@ -128,6 +128,28 @@ Current observed board evidence:
 
 ## 4. Controller-Only Board Test
 
+Before sending any CAN frame, check the CAN bus:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\diagnose_30tai_can_bus.ps1 -SshKey .\.ssh_board\id_ed25519_30tai
+```
+
+Current observed board evidence:
+
+- `can0` bitrate is `250000`.
+- `can0` state is `ERROR-PASSIVE`.
+- tx error counter is `128`, rx error counter is `0`.
+- Do not send motion commands in this state.
+
+Typical checks for `ERROR-PASSIVE`:
+
+- vehicle controller and gimbal controller are powered,
+- CANH and CANL are not reversed,
+- board and controller share ground,
+- both ends have correct 120-ohm termination,
+- the controller has entered CAN bus control mode,
+- bitrate matches the actual bus speed.
+
 If real SDI input is not available, run the synthetic controller test before any motion test:
 
 ```powershell

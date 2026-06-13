@@ -97,6 +97,15 @@ Board-specific notes from the current 30TAI:
   - lost synthetic target -> chassis stop
   - generated `0x201` and `0x38A` CAN payload bytes
 - The synthetic test did not send CAN frames by default. `can0` was observed as `ERROR-PASSIVE`, so real CAN sending should wait until the bus is `ERROR-ACTIVE` with wheels lifted.
+- `tools/diagnose_30tai_can_bus.ps1` was added for repeatable CAN health checks.
+- Latest CAN diagnosis showed:
+  - before state: `ERROR-PASSIVE`
+  - after state: `ERROR-PASSIVE`
+  - bitrate: `250000`
+  - tx error counter: `128`
+  - rx error counter: `0`
+  - tx packets: `0`, rx packets: `2`
+- This indicates that chassis/gimbal motion commands should not be sent until wiring, termination, controller mode, and bus ACK behavior are corrected.
 
 ## Next required board steps
 
@@ -117,6 +126,12 @@ To verify the aim/follow controller on 30TAI without using the camera path:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\tools\run_board_synthetic_control_test.ps1 -SshKey .\.ssh_board\id_ed25519_30tai
+```
+
+To check whether CAN is safe for lifted-wheel motion tests:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\diagnose_30tai_can_bus.ps1 -SshKey .\.ssh_board\id_ed25519_30tai
 ```
 
 The lower-level manual sequence remains:
