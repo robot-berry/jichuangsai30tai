@@ -12,6 +12,8 @@ It is not a copy of the original PLin + SingleNet + HDMI demo project. Instead, 
 
 Current completion and board-validation status is tracked in `STATUS.md`.
 
+Algorithm selection, control logic, parameter tuning, and 30TAI deployment constraints are described in `docs/ALGORITHM_DESIGN.md`.
+
 ## Repository layout
 
 ```text
@@ -35,6 +37,9 @@ tools/
 
 integration/
   INTEGRATE_WITH_PLIN_PROJECT.md
+
+docs/
+  ALGORITHM_DESIGN.md
 
 STATUS.md
 ```
