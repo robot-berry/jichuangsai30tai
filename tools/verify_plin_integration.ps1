@@ -38,10 +38,14 @@ function Read-TextIfExists {
 
 $cmakeText = Read-TextIfExists $CMakePath
 $mainText = Read-TextIfExists $MainPath
+$moduleHeaderText = Read-TextIfExists $ModuleHeader
+$moduleSourceText = Read-TextIfExists $ModuleSource
 
 Add-Check "Project has build_30tai.sh" (Test-Path $BuildScript) $BuildScript
 Add-Check "Module header exists" (Test-Path $ModuleHeader) $ModuleHeader
 Add-Check "Module source exists" (Test-Path $ModuleSource) $ModuleSource
+Add-Check "Module exposes MonocularDistanceEstimator" ($moduleHeaderText.Contains("MonocularDistanceEstimator")) $ModuleHeader
+Add-Check "Module implements monocular distance update" ($moduleSourceText.Contains("target_real_width_m") -and $moduleSourceText.Contains("filtered_distance_m_")) $ModuleSource
 Add-Check "Board smoke script exists" (Test-Path $SmokeScript) $SmokeScript
 Add-Check "CMake includes aim_follow source" ($cmakeText.Contains("aim_follow_control/src/aim_follow_controller.cpp")) $CMakePath
 Add-Check "CMake includes aim_follow include dir" ($cmakeText.Contains("aim_follow_control/include")) $CMakePath

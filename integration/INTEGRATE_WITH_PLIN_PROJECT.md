@@ -150,15 +150,34 @@ Create:
 static aim_follow::AimFollowController follow_controller;
 ```
 
+Recommended distance estimator:
+
+```cpp
+static aim_follow::MonocularDistanceEstimator distance_estimator;
+```
+
+Configure it with the same measured parameters used for distance display:
+
+```cpp
+aim_follow::DistanceEstimatorConfig distance_cfg;
+distance_cfg.target_real_width_m = DISTANCE_TARGET_REAL_WIDTH_M;
+distance_cfg.focal_length_px = DISTANCE_CAMERA_FOCAL_PX;
+distance_cfg.min_box_width_px = DISTANCE_MIN_BOX_WIDTH_PX;
+distance_cfg.filter_alpha = DISTANCE_FILTER_ALPHA;
+distance_estimator.setConfig(distance_cfg);
+```
+
 For a valid target:
 
 ```cpp
+const auto distance = distance_estimator.update(w);
+
 aim_follow::TargetObservation obs;
 obs.valid = true;
 obs.center_x = cx;
 obs.center_y = cy;
 obs.box_width = w;
-obs.distance_m = filtered_distance_m;
+obs.distance_m = distance.filtered_distance_m;
 obs.timestamp_s = std::chrono::duration<float>(
     std::chrono::steady_clock::now().time_since_epoch()).count();
 
@@ -193,6 +212,7 @@ aim_follow_control/ACCEPTANCE_CHECKLIST.md
 Minimum evidence:
 
 - local `aim_follow_controller_test passed`
+- `MonocularDistanceEstimator` exists in the integrated `aim_follow_control` module
 - 30TAI build succeeds
 - `[AIM FOLLOW CONFIG]` appears in board `app.log`
 - `[AIM FOLLOW]` appears when a bicycle target is visible
