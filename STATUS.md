@@ -38,6 +38,19 @@ It is not a full copy of the original PLin + SingleNet + HDMI demo application. 
   - target continuity selection
 - Integration documentation is available under `integration/`.
 - Board-side helper scripts are available under `tools/`.
+- No-CAN vision/algorithm board test is available:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\run_board_vision_algorithm_test.ps1 -ProjectDir <PLinProjectDir> -SshKey .\.ssh_board\id_ed25519_30tai
+```
+
+- The integrated PLin main program can run with `AIM_FOLLOW_CAN_DRYRUN=1` so the controller computes and displays commands without writing `can0`.
+- The integrated PLin HDMI output now includes an on-screen control panel:
+  - target lock/lost state
+  - filtered distance and distance error
+  - gimbal tracking pitch/yaw and normalized image error
+  - chassis tracking motor1/motor2 RPM command
+  - CAN output state: `DRYRUN(no write)` or `ACTIVE(write can0)`
 - Final board acceptance runbook is available under `docs/BOARD_ACCEPTANCE_RUNBOOK.md`.
 - Real-car tuning log template is available under `docs/TUNING_LOG_TEMPLATE.md`.
 - One-command acceptance preflight is available:
@@ -77,6 +90,19 @@ Verified on 30TAI:
 - After switching the PLin main program to use `MonocularDistanceEstimator`, the app rebuilt on 30TAI and produced `build/ZG/sdicamera+yolov5+hdmi`.
 - Direct board startup of that rebuilt binary emitted `[AIM FOLLOW CONFIG]` and reached `All actors started...`.
 - A board clock skew issue caused uploaded source files to appear from the future and made `stage_bundle` repeat compilation; deploy scripts now touch unpacked files on the board after extraction.
+- `tools/run_board_vision_algorithm_test.ps1` now avoids `stage_bundle` and directly runs `build/ZG/sdicamera+yolov5+hdmi`, which is more reliable for the current no-CAN HDMI/vision validation phase.
+- Latest no-CAN VTC test:
+  - command used `-UseVtc -SkipUpload -SkipBuild`
+  - `AIM_FOLLOW_CAN_DRYRUN=1` was active
+  - app reached `All actors started...`
+  - no `ImageMake Timeout` or `accept 0 data`
+  - `[YOLO DEBUG] raw=0, bicycle=0`, expected because the internal VTC source does not contain the bicycle target
+  - CAN dry-run command logs appeared, proving CAN writes are isolated
+- Latest no-CAN real SDI test:
+  - app reached `All actors started...`
+  - `AIM_FOLLOW_CAN_DRYRUN=1` was active
+  - repeated `ImageMake Timeout` and `accept 0 data`
+  - no `[YOLO DEBUG]`, `[AIM FOLLOW]`, or `[DISTANCE DEBUG]`, because no valid external frame reached the model pipeline
 
 Current remaining blocker:
 
@@ -166,6 +192,18 @@ To verify the aim/follow controller on 30TAI without using the camera path:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\tools\run_board_synthetic_control_test.ps1 -SshKey .\.ssh_board\id_ed25519_30tai
+```
+
+To verify the HDMI/vision application path without CAN writes:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\run_board_vision_algorithm_test.ps1 -ProjectDir <PLinProjectDir> -SshKey .\.ssh_board\id_ed25519_30tai -SkipUpload -SkipBuild
+```
+
+To verify the same application path with the internal VTC source instead of the physical SDI input:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\run_board_vision_algorithm_test.ps1 -ProjectDir <PLinProjectDir> -SshKey .\.ssh_board\id_ed25519_30tai -UseVtc -SkipUpload -SkipBuild
 ```
 
 To check whether CAN is safe for lifted-wheel motion tests:

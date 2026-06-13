@@ -17,6 +17,7 @@ board_sdi_mode_probes/
 board_sdi_register_dumps/
 board_video_diagnostics/
 board_synthetic_logs/
+board_vision_algorithm_logs/
 *.log
 .ssh_board/
 

@@ -1,5 +1,6 @@
 param(
-    [string]$LogDir = ""
+    [string]$LogDir = "",
+    [switch]$AllowNoTarget
 )
 
 $ErrorActionPreference = "Stop"
@@ -25,6 +26,7 @@ $summaryLog = Join-Path $LogDir "summary.txt"
 
 Write-Host "==== 30TAI vision/algorithm log analysis ====" -ForegroundColor Cyan
 Write-Host "LogDir: $LogDir"
+Write-Host "AllowNoTarget: $AllowNoTarget"
 
 function Count-Matches {
     param(
@@ -56,6 +58,7 @@ $canDryRunCount = Count-Matches $appLog "DRYRUN id=0x"
 $imageTimeout = Has-Match $appLog "ImageMake Timeout"
 $zeroData = Has-Match $appLog "accept 0 data"
 $dryRunEnabled = Has-Match $appLog "[CAN DRYRUN]"
+$frameInputReady = (-not $imageTimeout) -and (-not $zeroData)
 
 Write-Host ""
 Write-Host "Key counts:" -ForegroundColor Cyan
@@ -67,24 +70,47 @@ Write-Host "  CAN DRYRUN frames: $canDryRunCount"
 
 Write-Host ""
 Write-Host "Checks:" -ForegroundColor Cyan
-$checks = @(
-    @{ Name = "CAN dry-run enabled"; Passed = $dryRunEnabled; Hint = "Missing [CAN DRYRUN]; check AIM_FOLLOW_CAN_DRYRUN=1." },
-    @{ Name = "camera stream has no ImageMake timeout"; Passed = (-not $imageTimeout); Hint = "ImageMake Timeout usually means SDI input is not producing valid frames." },
-    @{ Name = "camera stream has no zero-data accept"; Passed = (-not $zeroData); Hint = "accept 0 data usually means the SDI/camera path has no valid frame data." },
-    @{ Name = "aim/follow config loaded"; Passed = ($configCount -gt 0); Hint = "Missing [AIM FOLLOW CONFIG]; deployed binary may not be rebuilt." },
-    @{ Name = "target entered algorithm"; Passed = ($followCount -gt 0); Hint = "Missing [AIM FOLLOW]; YOLO may not detect the bicycle target." },
-    @{ Name = "distance estimation visible"; Passed = ($distanceCount -gt 0); Hint = "Missing [DISTANCE DEBUG]; check detection box width and distance configuration." },
-    @{ Name = "CAN output isolated"; Passed = ($canDryRunCount -gt 0); Hint = "Missing DRYRUN frame logs; algorithm may not be reaching command output." }
-)
-
 $failed = 0
-foreach ($check in $checks) {
-    if ($check.Passed) {
-        Write-Host "  [PASS] $($check.Name)" -ForegroundColor Green
-    } else {
-        ++$failed
-        Write-Host "  [FAIL] $($check.Name) - $($check.Hint)" -ForegroundColor Yellow
+function Write-Check {
+    param(
+        [string]$Name,
+        [bool]$Passed,
+        [string]$Hint
+    )
+    if ($Passed) {
+        Write-Host "  [PASS] $Name" -ForegroundColor Green
+        return
     }
+    $script:failed += 1
+    Write-Host "  [FAIL] $Name - $Hint" -ForegroundColor Yellow
+}
+
+function Write-Skip {
+    param(
+        [string]$Name,
+        [string]$Reason
+    )
+    Write-Host "  [SKIP] $Name - $Reason" -ForegroundColor DarkYellow
+}
+
+Write-Check "CAN dry-run enabled" $dryRunEnabled "Missing [CAN DRYRUN]; check AIM_FOLLOW_CAN_DRYRUN=1."
+Write-Check "camera stream has no ImageMake timeout" (-not $imageTimeout) "ImageMake Timeout usually means SDI input is not producing valid frames."
+Write-Check "camera stream has no zero-data accept" (-not $zeroData) "accept 0 data usually means the SDI/camera path has no valid frame data."
+Write-Check "aim/follow config loaded" ($configCount -gt 0) "Missing [AIM FOLLOW CONFIG]; deployed binary may not be rebuilt."
+
+if ($frameInputReady) {
+    if ($AllowNoTarget -and $followCount -eq 0) {
+        Write-Skip "target entered algorithm" "no target required for this frame-path test"
+        Write-Skip "distance estimation visible" "no target required for this frame-path test"
+    } else {
+        Write-Check "target entered algorithm" ($followCount -gt 0) "Missing [AIM FOLLOW]; YOLO may not detect the bicycle target."
+        Write-Check "distance estimation visible" ($distanceCount -gt 0) "Missing [DISTANCE DEBUG]; check detection box width and distance configuration."
+    }
+    Write-Check "CAN output isolated" ($canDryRunCount -gt 0) "Missing DRYRUN frame logs; algorithm may not be reaching command output."
+} else {
+    Write-Skip "target entered algorithm" "no valid camera frame reached ImageMake/model pipeline"
+    Write-Skip "distance estimation visible" "distance requires a detected target box"
+    Write-Skip "CAN output isolated after target" "command output requires a valid target or target-lost loop after frame processing"
 }
 
 if (Test-Path $summaryLog) {
