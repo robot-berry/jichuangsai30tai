@@ -116,6 +116,10 @@ Board-specific notes from the current 30TAI:
   - `1280x720@60`: actors start, but `ImageMake Timeout` / `accept 0 data`
   - `1280x720@30`: actors start, but `ImageMake Timeout` / `accept 0 data`
 - This makes a simple YAML resolution/fps mismatch less likely; continue checking SDI signal lock, cable/source output, and bitstream support for `SDI_IN_0`.
+- `tools/dump_30tai_sdi_registers.ps1` was added for read-only `/dev/mem` snapshots of the SDICamera register region. Latest register diagnosis showed:
+  - after real `SDI_IN_0` run: `done_status=0x00000000`, `vtc_or_done2fetch=0x00000000`
+  - after VTC run: `done_status=0x00000001`, `vtc_or_done2fetch=0x00000001`
+- This confirms the SDICamera hardware can complete frames through VTC, while the external SDI path does not assert the capture done bit.
 - `tools/run_board_synthetic_control_test.ps1` was added for controller-only board validation when the camera path is unavailable.
 - Latest synthetic control test built `aim_follow_control` directly on 30TAI and passed:
   - synthetic box width -> monocular distance estimate -> follow controller path

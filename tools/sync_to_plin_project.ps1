@@ -51,6 +51,7 @@ $toolNames = @(
     "diagnose_30tai_can_bus.ps1",
     "diagnose_30tai_video_input.ps1",
     "deploy_30tai.ps1",
+    "dump_30tai_sdi_registers.ps1",
     "find_30tai_board.ps1",
     "probe_30tai_sdi_modes.ps1",
     "run_board_acceptance.ps1",

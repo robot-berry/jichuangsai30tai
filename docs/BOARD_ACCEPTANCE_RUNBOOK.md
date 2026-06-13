@@ -153,6 +153,12 @@ To check whether the failure is only a common camera resolution/fps mismatch, ru
 powershell -ExecutionPolicy Bypass -File .\tools\probe_30tai_sdi_modes.ps1 -SshKey .\.ssh_board\id_ed25519_30tai
 ```
 
+To compare SDICamera register state after real SDI and VTC runs, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\dump_30tai_sdi_registers.ps1 -SshKey .\.ssh_board\id_ed25519_30tai
+```
+
 The diagnostic runs three cases:
 
 | Case | Purpose | Expected interpretation |
@@ -174,6 +180,7 @@ Current observed board evidence:
 - The current single-input code uses `camera_id = 0` and the first SDICamera base address, so a camera connected to `SDI_IN_0` is consistent with the software path. If `accept 0 data` remains, continue checking signal format, cable, camera output mode, and bitstream input status.
 - Temporary probes of `1920x1080@60`, `1920x1080@30`, `1280x720@60`, and `1280x720@30` all still produced `ImageMake Timeout` / `accept 0 data`, so the current evidence points beyond a simple YAML resolution/fps mismatch.
 - The combined readiness report can include this SDI mode probe with `-RunSdiProbe`; the current observed result is `NO_CANDIDATE`.
+- Read-only SDICamera register snapshots show `done_status=0x00000000` after real SDI runs and `done_status=0x00000001` after VTC runs. This confirms the internal test path completes but the external `SDI_IN_0` path does not assert frame capture done.
 
 ## 5. Controller-Only Board Test
 
