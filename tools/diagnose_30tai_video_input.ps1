@@ -105,6 +105,13 @@ echo "after integrated call" >> "`$PROGRESS"
 run_case integrated_direct "`$DIRECT" "build/ZG/sdicamera+yolov5+hdmi" "configs/ZG/sdicamera+yolov5+hdmi_board_model_direct.yaml"
 echo "after integrated direct call" >> "`$PROGRESS"
 
+if [ -f "`$DIRECT/configs/ZG/sdicamera+yolov5+hdmi_board_model_direct.yaml" ]; then
+    cp "`$DIRECT/configs/ZG/sdicamera+yolov5+hdmi_board_model_direct.yaml" "`$DIRECT/configs/ZG/sdicamera+yolov5+hdmi_board_model_direct_vtc.yaml"
+    sed -i 's/vtc: false/vtc: true/' "`$DIRECT/configs/ZG/sdicamera+yolov5+hdmi_board_model_direct_vtc.yaml"
+fi
+run_case integrated_direct_vtc "`$DIRECT" "build/ZG/sdicamera+yolov5+hdmi" "configs/ZG/sdicamera+yolov5+hdmi_board_model_direct_vtc.yaml"
+echo "after integrated direct vtc call" >> "`$PROGRESS"
+
 if [ -f "`$DEPLOY/configs/ZG/sdicamera+yolov5+hdmi_board_model.yaml" ]; then
     cp "`$DEPLOY/configs/ZG/sdicamera+yolov5+hdmi_board_model.yaml" "`$DEPLOY/configs/ZG/sdicamera+yolov5+hdmi_board_model_vtc.yaml"
     sed -i 's/vtc: false/vtc: true/' "`$DEPLOY/configs/ZG/sdicamera+yolov5+hdmi_board_model_vtc.yaml"
@@ -117,7 +124,7 @@ echo "after vtc call" >> "`$PROGRESS"
     echo
     echo "| Case | All actors | ImageMake timeout | accept 0 data | AIM config | AIM follow | Distance debug | Abort/runtime error |"
     echo "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"
-    for case_name in original_plin integrated_board_model integrated_direct integrated_vtc; do
+    for case_name in original_plin integrated_board_model integrated_direct integrated_direct_vtc integrated_vtc; do
         log="`$REMOTE_LOG_DIR/`$case_name.log"
         if [ ! -f "`$log" ]; then
             echo "| `$case_name | 0 | 0 | 0 | 0 | 0 | 0 | 0 |"
@@ -141,7 +148,7 @@ echo "after vtc call" >> "`$PROGRESS"
     if grep -q 'ioctl(VIDIOC_G_INPUT).*Inappropriate ioctl' "`$REMOTE_LOG_DIR/system.txt" 2>/dev/null; then
         echo "- /dev/video0 does not behave as a normal V4L2 capture device on this image; the PLin demo depends on the board-specific PL camera path."
     fi
-    if grep -q 'IcoreActor: Failed to pop from input queue' "`$REMOTE_LOG_DIR/integrated_vtc.log" 2>/dev/null; then
+    if grep -q 'IcoreActor: Failed to pop from input queue' "`$REMOTE_LOG_DIR/integrated_direct_vtc.log" "`$REMOTE_LOG_DIR/integrated_vtc.log" 2>/dev/null; then
         echo "- The VTC/test-pattern path avoids the zero-data ImageMake symptom but currently stops the input queue, so it is useful only as a diagnostic isolation check."
     fi
 } > "`$REMOTE_LOG_DIR/summary.md"
