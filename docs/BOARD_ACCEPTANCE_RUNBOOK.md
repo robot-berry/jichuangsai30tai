@@ -73,6 +73,12 @@ Before full closed-loop testing, run the combined readiness report:
 powershell -ExecutionPolicy Bypass -File .\tools\run_board_readiness_report.ps1 -SshKey .\.ssh_board\id_ed25519_30tai
 ```
 
+To include the common SDI resolution/fps probe in the same report:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\run_board_readiness_report.ps1 -SshKey .\.ssh_board\id_ed25519_30tai -RunSdiProbe
+```
+
 The report combines:
 
 - SSH reachability,
@@ -167,6 +173,7 @@ Current observed board evidence:
 - The active PLin configs declare `camera.type: hdmi` and `1920x1080@60`; the physical camera source must feed the HDMI/SDI/PL path expected by the current bitstream.
 - The current single-input code uses `camera_id = 0` and the first SDICamera base address, so a camera connected to `SDI_IN_0` is consistent with the software path. If `accept 0 data` remains, continue checking signal format, cable, camera output mode, and bitstream input status.
 - Temporary probes of `1920x1080@60`, `1920x1080@30`, `1280x720@60`, and `1280x720@30` all still produced `ImageMake Timeout` / `accept 0 data`, so the current evidence points beyond a simple YAML resolution/fps mismatch.
+- The combined readiness report can include this SDI mode probe with `-RunSdiProbe`; the current observed result is `NO_CANDIDATE`.
 
 ## 5. Controller-Only Board Test
 

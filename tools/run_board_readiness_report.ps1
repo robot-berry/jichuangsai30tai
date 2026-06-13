@@ -8,8 +8,11 @@ param(
     [string]$LocalReportDir = "",
     [int]$VideoRunSeconds = 8,
     [int]$CanObserveSeconds = 3,
+    [int]$SdiProbeRunSeconds = 5,
+    [string]$SdiProbeModes = "1920x1080@60,1920x1080@30,1280x720@60,1280x720@30",
     [switch]$SkipVideo,
     [switch]$SkipSynthetic,
+    [switch]$RunSdiProbe,
     [switch]$DryRun
 )
 
@@ -29,6 +32,7 @@ $RunReportDir = Join-Path $LocalReportDir "readiness_$RunId"
 $CanLogRoot = Join-Path $RunReportDir "can"
 $VideoLogRoot = Join-Path $RunReportDir "video"
 $SyntheticLogRoot = Join-Path $RunReportDir "synthetic"
+$SdiProbeLogRoot = Join-Path $RunReportDir "sdi_probe"
 
 function Invoke-Tool {
     param(
@@ -75,13 +79,14 @@ Write-Host "ReportDir:  $RunReportDir"
 Write-Host "RemoteDir:  $RemoteDir"
 Write-Host "SkipVideo:  $SkipVideo"
 Write-Host "SkipSynth:  $SkipSynthetic"
+Write-Host "RunSdiProbe:$RunSdiProbe"
 Write-Host "DryRun:     $DryRun"
 if ($SshKey) {
     Write-Host "SSH key:    $SshKey"
 }
 
 if (-not $DryRun) {
-    New-Item -ItemType Directory -Force -Path $CanLogRoot, $VideoLogRoot, $SyntheticLogRoot | Out-Null
+    New-Item -ItemType Directory -Force -Path $CanLogRoot, $VideoLogRoot, $SyntheticLogRoot, $SdiProbeLogRoot | Out-Null
 }
 
 $commonArgs = @(
@@ -144,6 +149,23 @@ if (-not $SkipVideo) {
     $videoRet = Invoke-Tool "Video input diagnostic" $videoArgs
 }
 
+$sdiProbeRet = 0
+if ($RunSdiProbe) {
+    $sdiProbeArgs = $commonArgs + @(
+        "-File", (Join-Path $RepoRoot "tools\probe_30tai_sdi_modes.ps1"),
+        "-BoardIp", $BoardIp,
+        "-User", $User,
+        "-RemoteDir", $RemoteDir,
+        "-RunSeconds", "$SdiProbeRunSeconds",
+        "-Modes", $SdiProbeModes,
+        "-LocalLogDir", $SdiProbeLogRoot
+    )
+    if ($SshKey) {
+        $sdiProbeArgs += @("-SshKey", $SshKey)
+    }
+    $sdiProbeRet = Invoke-Tool "SDI mode probe" $sdiProbeArgs
+}
+
 if ($DryRun) {
     Write-Host ""
     Write-Host "Dry run finished. No report was written." -ForegroundColor Yellow
@@ -153,10 +175,12 @@ if ($DryRun) {
 $canDir = Get-LatestDir $CanLogRoot
 $syntheticDir = Get-LatestDir $SyntheticLogRoot
 $videoDir = Get-LatestDir $VideoLogRoot
+$sdiProbeDir = Get-LatestDir $SdiProbeLogRoot
 
 $canSummary = if ($canDir) { Join-Path $canDir.FullName "summary.md" } else { "" }
 $syntheticLog = if ($syntheticDir) { Join-Path $syntheticDir.FullName "synthetic_control.log" } else { "" }
 $videoSummary = if ($videoDir) { Join-Path $videoDir.FullName "summary.md" } else { "" }
+$sdiProbeSummary = if ($sdiProbeDir) { Join-Path $sdiProbeDir.FullName "summary.md" } else { "" }
 
 $canReady = Test-FileContains $canSummary "Result: CAN controller is active"
 $syntheticPass = (-not $SkipSynthetic) -and (Test-FileContains $syntheticLog "\[SYNTH SUMMARY\].*result=PASS")
@@ -165,8 +189,9 @@ $videoReady = (-not $SkipVideo) -and (
     -not (Test-FileContains $videoSummary "accept 0 data") -and
     -not (Test-FileContains $videoSummary "real SDI input loss")
 )
+$sdiProbeCandidate = $RunSdiProbe -and (Test-FileContains $sdiProbeSummary "Candidate modes without ImageMake zero-data errors")
 
-$overallReady = ($connectionRet -eq 0) -and ($canRet -eq 0) -and ($syntheticRet -eq 0) -and ($videoRet -eq 0) -and $canReady -and $syntheticPass -and $videoReady
+$overallReady = ($connectionRet -eq 0) -and ($canRet -eq 0) -and ($syntheticRet -eq 0) -and ($videoRet -eq 0) -and ($sdiProbeRet -eq 0) -and $canReady -and $syntheticPass -and $videoReady
 
 $reportPath = Join-Path $RunReportDir "readiness_report.md"
 $readyText = if ($overallReady) { "YES" } else { "NO" }
@@ -174,8 +199,10 @@ $connectionText = if ($connectionRet -eq 0) { "PASS" } else { "FAIL" }
 $canText = if ($canReady) { "PASS" } else { "FAIL" }
 $syntheticText = if ($SkipSynthetic) { "SKIPPED" } elseif ($syntheticPass) { "PASS" } else { "FAIL" }
 $videoText = if ($SkipVideo) { "SKIPPED" } elseif ($videoReady) { "PASS" } else { "FAIL" }
+$sdiProbeText = if (-not $RunSdiProbe) { "SKIPPED" } elseif ($sdiProbeCandidate) { "CANDIDATE" } else { "NO_CANDIDATE" }
 $syntheticDirText = if ($syntheticDir) { $syntheticDir.FullName } else { "skipped" }
 $videoDirText = if ($videoDir) { $videoDir.FullName } else { "skipped" }
+$sdiProbeDirText = if ($sdiProbeDir) { $sdiProbeDir.FullName } else { "skipped" }
 
 $report = @()
 $report += "# 30TAI Aim/Follow Readiness Report"
@@ -191,6 +218,7 @@ $report += "| SSH connection | $connectionText | ``check_30tai_connection.ps1`` 
 $report += "| CAN bus healthy | $canText | ``$canSummary`` |"
 $report += "| Controller synthetic behavior | $syntheticText | ``$syntheticLog`` |"
 $report += "| Real video input | $videoText | ``$videoSummary`` |"
+$report += "| SDI mode probe | $sdiProbeText | ``$sdiProbeSummary`` |"
 $report += ""
 $report += "## Interpretation"
 $report += ""
@@ -200,10 +228,16 @@ if (-not $canReady) {
 if ((-not $SkipVideo) -and (-not $videoReady)) {
     $report += "- Real SDI/video input is not ready for closed-loop target following. Fix the camera/SDI/bitstream path before judging YOLO-driven aim/follow."
 }
+if ($RunSdiProbe -and (-not $sdiProbeCandidate)) {
+    $report += "- SDI mode probe found no common temporary camera mode that avoids ImageMake zero-data errors."
+}
+if ($RunSdiProbe -and $sdiProbeCandidate) {
+    $report += "- SDI mode probe found at least one candidate mode; inspect the probe summary and update the real camera config deliberately."
+}
 if ((-not $SkipSynthetic) -and $syntheticPass) {
     $report += "- The aim/follow controller logic passes on 30TAI with synthetic target observations."
 }
-if ($SkipSynthetic -or $SkipVideo) {
+if ($SkipSynthetic -or $SkipVideo -or (-not $RunSdiProbe)) {
     $report += "- One or more gates were skipped, so this report is not sufficient to approve full closed-loop testing."
 }
 if ($overallReady) {
@@ -215,6 +249,7 @@ $report += ""
 $report += "- CAN: ``$($canDir.FullName)``"
 $report += "- Synthetic: ``$syntheticDirText``"
 $report += "- Video: ``$videoDirText``"
+$report += "- SDI mode probe: ``$sdiProbeDirText``"
 
 $report | Set-Content -LiteralPath $reportPath -Encoding UTF8
 

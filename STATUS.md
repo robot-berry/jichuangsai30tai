@@ -140,6 +140,7 @@ Board-specific notes from the current 30TAI:
   - CAN bus healthy: PASS in the latest standalone CAN diagnosis
   - controller synthetic behavior: PASS
   - real video input: FAIL
+  - SDI mode probe with `-RunSdiProbe`: NO_CANDIDATE
 
 ## Next required board steps
 
