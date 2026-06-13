@@ -129,6 +129,15 @@ Verified on 30TAI:
   - `[DISTANCE DEBUG]`: 43
   - CAN dry-run frames: 86
   - result: `Vision/algorithm test passed without CAN control`
+- One-command HDMI synthetic demo is available:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\run_hdmi_synthetic_demo.ps1 -ProjectDir <PLinProjectDir> -SshKey .\.ssh_board\id_ed25519_30tai -SkipUpload -SkipBuild
+```
+
+This uses VTC + synthetic bicycle target + CAN dry-run. It is the fastest way
+to show the HDMI panel with distance, gimbal tracking, chassis tracking, and
+CAN output state before the real SDI camera and real CAN hardware are ready.
 
 Current remaining blocker:
 

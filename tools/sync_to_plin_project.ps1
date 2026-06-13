@@ -59,6 +59,7 @@ $toolNames = @(
     "run_board_vision_algorithm_test.ps1",
     "run_board_readiness_report.ps1",
     "run_board_synthetic_control_test.ps1",
+    "run_hdmi_synthetic_demo.ps1",
     "run_sdi_input_triage.ps1",
     "run_acceptance_preflight.ps1",
     "verify_plin_integration.ps1"

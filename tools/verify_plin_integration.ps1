@@ -15,6 +15,7 @@ $SmokeScript = Join-Path $ProjectDir "aim_follow_control\test\run_30tai_smoke_te
 $VisionTestScript = Join-Path $ProjectDir "tools\run_board_vision_algorithm_test.ps1"
 $VisionAnalyzeScript = Join-Path $ProjectDir "tools\analyze_vision_algorithm_logs.ps1"
 $SdiTriageScript = Join-Path $ProjectDir "tools\run_sdi_input_triage.ps1"
+$HdmiSyntheticDemoScript = Join-Path $ProjectDir "tools\run_hdmi_synthetic_demo.ps1"
 
 $checks = New-Object System.Collections.Generic.List[object]
 
@@ -54,6 +55,7 @@ Add-Check "Board smoke script exists" (Test-Path $SmokeScript) $SmokeScript
 Add-Check "No-CAN vision test script exists" (Test-Path $VisionTestScript) $VisionTestScript
 Add-Check "Vision log analyzer exists" (Test-Path $VisionAnalyzeScript) $VisionAnalyzeScript
 Add-Check "SDI triage script exists" (Test-Path $SdiTriageScript) $SdiTriageScript
+Add-Check "HDMI synthetic demo script exists" (Test-Path $HdmiSyntheticDemoScript) $HdmiSyntheticDemoScript
 Add-Check "CMake includes aim_follow source" ($cmakeText.Contains("aim_follow_control/src/aim_follow_controller.cpp")) $CMakePath
 Add-Check "CMake includes aim_follow include dir" ($cmakeText.Contains("aim_follow_control/include")) $CMakePath
 Add-Check "Main includes aim_follow header" ($mainText.Contains('#include "aim_follow_controller.hpp"')) $MainPath
