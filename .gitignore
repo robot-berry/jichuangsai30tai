@@ -11,6 +11,7 @@ CMakeCache.txt
 # Local test and board logs
 board_smoke_logs/
 board_can_diagnostics/
+board_camera_path_diagnostics/
 board_readiness_reports/
 board_video_diagnostics/
 board_synthetic_logs/

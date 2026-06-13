@@ -135,6 +135,12 @@ To collect a repeatable video-input diagnosis, run:
 powershell -ExecutionPolicy Bypass -File .\tools\diagnose_30tai_video_input.ps1 -SshKey .\.ssh_board\id_ed25519_30tai
 ```
 
+To collect lower-level camera/PL path evidence, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\diagnose_30tai_camera_path.ps1 -SshKey .\.ssh_board\id_ed25519_30tai
+```
+
 The diagnostic runs three cases:
 
 | Case | Purpose | Expected interpretation |
@@ -150,7 +156,9 @@ Current observed board evidence:
 - `integrated_direct` emits `[AIM FOLLOW CONFIG]`, proving the deployed binary contains the aim/follow module.
 - `integrated_board_model` can be skipped on board images that build directly into `build/ZG/` instead of producing a `deploy/ZG/` bundle.
 - `integrated_vtc` runs without `ImageMake Timeout`, but it does not provide a real target frame, so it cannot prove final target following.
-- `/dev/video0` is not a normal V4L2 capture device on this board image; the PLin demo depends on the board-specific PL camera path.
+- `/dev/video0` reports `mvx / Linlon Video device` with a `2x2` default format, so it is not the physical camera source expected by the PLin input pipeline.
+- The active PLin configs declare `camera.type: hdmi` and `1920x1080@60`; the physical camera source must feed the HDMI/SDI/PL path expected by the current bitstream.
+- The current single-input code uses `camera_id = 0` and the first SDICamera base address, so a camera connected to `SDI_IN_0` is consistent with the software path. If `accept 0 data` remains, continue checking signal format, cable, camera output mode, and bitstream input status.
 
 ## 5. Controller-Only Board Test
 

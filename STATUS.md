@@ -93,12 +93,21 @@ Board-specific notes from the current 30TAI:
 - The board's reference `yolov5s_352x640_ZG` model with `detpost: false` starts successfully.
 - The board does not provide `candump`, so CAN evidence currently comes from app logs unless CAN utilities are installed.
 - `tools/diagnose_30tai_video_input.ps1` compares the unmodified PLin demo, the integrated board-model config, and a `camera.vtc: true` test-pattern config.
+- `tools/diagnose_30tai_camera_path.ps1` collects lower-level device-node, V4L2, dmesg, and config evidence for the camera/PL input path.
 - Latest video-input diagnosis showed:
   - `original_plin`: actors start, then `ImageMake Timeout` / `accept 0 data`
   - `integrated_board_model`: deploy-style executable path was not present on the current board image
   - `integrated_direct`: actors start, `[AIM FOLLOW CONFIG]` appears, then the same `ImageMake Timeout` / `accept 0 data`
   - `integrated_vtc`: actors start and no `ImageMake Timeout` appears during the short test, but no real target detections are produced
 - This points to real SDI/camera input state as the current blocker before closed-loop target following can be verified.
+- Latest camera-path diagnosis showed:
+  - `/dev/video0`: `mvx / Linlon Video device`
+  - `/dev/video0` default format: `2x2`
+  - media nodes: none
+  - I2C nodes: none
+  - active config camera type: `hdmi`
+- This means `/dev/video0` should not be treated as the physical camera input for this project; the camera must feed the PLin HDMI/SDI path expected by the current bitstream and YAML config.
+- The camera is physically connected to `SDI_IN_0`, which matches the current single-input code path using `camera_id = 0` and the first SDICamera base address. The remaining camera blocker is therefore signal/path validity on `SDI_IN_0`, not an intentional software switch to another camera index.
 - `tools/run_board_synthetic_control_test.ps1` was added for controller-only board validation when the camera path is unavailable.
 - Latest synthetic control test built `aim_follow_control` directly on 30TAI and passed:
   - synthetic box width -> monocular distance estimate -> follow controller path

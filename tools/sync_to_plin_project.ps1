@@ -47,6 +47,7 @@ if (-not $DryRun) {
 $toolNames = @(
     "analyze_smoke_logs.ps1",
     "check_30tai_connection.ps1",
+    "diagnose_30tai_camera_path.ps1",
     "diagnose_30tai_can_bus.ps1",
     "diagnose_30tai_video_input.ps1",
     "deploy_30tai.ps1",
