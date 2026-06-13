@@ -138,6 +138,13 @@ powershell -ExecutionPolicy Bypass -File .\tools\run_hdmi_synthetic_demo.ps1 -Pr
 This uses VTC + synthetic bicycle target + CAN dry-run. It is the fastest way
 to show the HDMI panel with distance, gimbal tracking, chassis tracking, and
 CAN output state before the real SDI camera and real CAN hardware are ready.
+- Latest one-command HDMI synthetic demo run with `-SkipUpload -SkipBuild`
+  passed on 30TAI:
+  - `[AIM FOLLOW]`: 85
+  - `[DISTANCE DEBUG]`: 85
+  - CAN dry-run frames: 168
+  - no `ImageMake Timeout`
+  - no `accept 0 data`
 
 Current remaining blocker:
 
