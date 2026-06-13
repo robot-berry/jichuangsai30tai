@@ -79,7 +79,7 @@ Run-Step "Upload archive" {
     & scp @SshOptionArgs $ArchivePath "${SshTarget}:$RemoteArchive"
 } "scp <archive> ${SshTarget}:$RemoteArchive"
 
-$remoteSetup = "rm -rf '$RemoteDir' '$RemoteLogDir' && mkdir -p '$RemoteDir' '$RemoteLogDir' && tar -xzf '$RemoteArchive' -C '$RemoteDir' --strip-components=1 && find '$RemoteDir' -exec touch -h {} +"
+$remoteSetup = "rm -rf '$RemoteDir' '$RemoteLogDir' && mkdir -p '$RemoteDir' '$RemoteLogDir' && tar --warning=no-timestamp -xzf '$RemoteArchive' -C '$RemoteDir' --strip-components=1 && find '$RemoteDir' -exec touch -h {} +"
 Run-Step "Unpack on board" {
     & ssh @SshOptionArgs $SshTarget $remoteSetup
 } "ssh $SshTarget `"$remoteSetup`""
