@@ -118,6 +118,17 @@ Verified on 30TAI:
   - HDMI `Target`, `Gimbal tracking`, `Chassis tracking`, and `CAN output` panel strings
   - no-CAN vision test, vision log analyzer, and SDI triage scripts copied into the PLin project
 - Latest integration check against the current PLin project passed all enhanced gates.
+- `AIM_FOLLOW_SYNTHETIC_TARGET=1` synthetic target mode was added for HDMI
+  validation while real `SDI_IN_0` is unavailable.
+- Latest 30TAI VTC + synthetic target run after redeploying the enhanced PLin
+  project:
+  - build succeeded on board
+  - no `ImageMake Timeout`
+  - no `accept 0 data`
+  - `[AIM FOLLOW]`: 44
+  - `[DISTANCE DEBUG]`: 43
+  - CAN dry-run frames: 86
+  - result: `Vision/algorithm test passed without CAN control`
 
 Current remaining blocker:
 

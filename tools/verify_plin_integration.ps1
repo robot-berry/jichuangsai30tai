@@ -43,6 +43,7 @@ $cmakeText = Read-TextIfExists $CMakePath
 $mainText = Read-TextIfExists $MainPath
 $moduleHeaderText = Read-TextIfExists $ModuleHeader
 $moduleSourceText = Read-TextIfExists $ModuleSource
+$visionTestText = Read-TextIfExists $VisionTestScript
 
 Add-Check "Project has build_30tai.sh" (Test-Path $BuildScript) $BuildScript
 Add-Check "Module header exists" (Test-Path $ModuleHeader) $ModuleHeader
@@ -69,10 +70,12 @@ Add-Check "Main references gimbal CAN 0x38A" ($mainText.Contains("0x38A") -or $m
 Add-Check "Main sends chassis command" ($mainText.Contains("send_chassis_can_mode")) $MainPath
 Add-Check "Main sends gimbal command" ($mainText.Contains("send_gimbal_can_mode")) $MainPath
 Add-Check "Main supports CAN dry-run" ($mainText.Contains("AIM_FOLLOW_CAN_DRYRUN") -and $mainText.Contains("DRYRUN id=0x")) $MainPath
+Add-Check "Main supports synthetic target mode" ($mainText.Contains("AIM_FOLLOW_SYNTHETIC_TARGET") -and $mainText.Contains("[SYNTHETIC TARGET]")) $MainPath
 Add-Check "Main displays HDMI target state" ($mainText.Contains("Target:{}  Distance:{}  Error:{:+.2f}m")) $MainPath
 Add-Check "Main displays HDMI gimbal tracking" ($mainText.Contains("Gimbal tracking: pitch={} yaw={}")) $MainPath
 Add-Check "Main displays HDMI chassis tracking" ($mainText.Contains("Chassis tracking: motor1={}rpm motor2={}rpm")) $MainPath
 Add-Check "Main displays HDMI CAN output state" ($mainText.Contains("CAN output: {}") -and $mainText.Contains("DRYRUN(no write)")) $MainPath
+Add-Check "No-CAN vision test can enable synthetic target" ($visionTestText.Contains("SyntheticTarget") -and $visionTestText.Contains("AIM_FOLLOW_SYNTHETIC_TARGET=1")) $VisionTestScript
 
 $failed = @($checks | Where-Object { -not $_.Pass })
 

@@ -66,6 +66,25 @@ written to `can0`.
 
 ## 2. Control values for HDMI display
 
+For camera-independent HDMI verification, add this constant near
+`AIM_FOLLOW_CAN_DRYRUN_ENV`:
+
+```cpp
+const char *AIM_FOLLOW_SYNTHETIC_TARGET_ENV = "AIM_FOLLOW_SYNTHETIC_TARGET";
+```
+
+Add a helper:
+
+```cpp
+bool is_synthetic_target_enabled() {
+    return is_env_enabled(AIM_FOLLOW_SYNTHETIC_TARGET_ENV);
+}
+```
+
+In the current implementation `is_can_dry_run_enabled()` and
+`is_synthetic_target_enabled()` both use a shared `is_env_enabled(...)` helper
+that accepts `1`, `true`, `TRUE`, `yes`, and `YES`.
+
 Inside the YOLO post-process lambda, after:
 
 ```cpp
@@ -86,6 +105,44 @@ int control_motor2 = last_motor2;
 int control_pitch = last_pitch;
 int control_yaw = last_yaw;
 ```
+
+After `map_box_to_display(...)`, add the inverse mapping helper and synthetic
+target injection:
+
+```cpp
+auto display_box_to_model = [&](const cv::Rect2f &display_box) -> cv::Rect2f {
+    if (is_hw_resize) {
+        return cv::Rect2f(
+            (display_box.tl().x - BIAS_W) / RATIO_W,
+            (display_box.tl().y - BIAS_H) / RATIO_H,
+            display_box.width / RATIO_W,
+            display_box.height / RATIO_H
+        );
+    }
+
+    return cv::Rect2f(
+        display_box.tl().x * RATIO_W + BIAS_W,
+        display_box.tl().y * RATIO_H + BIAS_H,
+        display_box.width * RATIO_W,
+        display_box.height * RATIO_H
+    );
+};
+
+if (is_synthetic_target_enabled()) {
+    // The implementation cycles through far, right, up, and close target states.
+    // It replaces the filtered bicycle list only in synthetic-test mode.
+}
+```
+
+The synthetic target mode is only for board bring-up:
+
+```bash
+AIM_FOLLOW_CAN_DRYRUN=1 AIM_FOLLOW_SYNTHETIC_TARGET=1 ./build/ZG/sdicamera+yolov5+hdmi configs/ZG/sdicamera+yolov5+hdmi_vision_vtc.yaml
+```
+
+It lets the VTC/internal frame source exercise the same distance, target
+selection, aim/follow, HDMI drawing, and CAN dry-run code path while the real
+SDI camera input is still unavailable.
 
 After computing `follow_cmd` for a valid target, copy the values for drawing:
 
@@ -166,7 +223,9 @@ powershell -ExecutionPolicy Bypass -File .\tools\verify_plin_integration.ps1 -Pr
 The verifier checks these exact integration markers:
 
 - `AIM_FOLLOW_CAN_DRYRUN`
+- `AIM_FOLLOW_SYNTHETIC_TARGET`
 - `DRYRUN id=0x`
+- `[SYNTHETIC TARGET]`
 - `Target:{}  Distance:{}  Error:{:+.2f}m`
 - `Gimbal tracking: pitch={} yaw={}`
 - `Chassis tracking: motor1={}rpm motor2={}rpm`
@@ -176,6 +235,12 @@ Run the HDMI/no-CAN board test:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\tools\run_board_vision_algorithm_test.ps1 -ProjectDir <PLinProjectDir> -SshKey .\.ssh_board\id_ed25519_30tai -SkipUpload -SkipBuild
+```
+
+Run the HDMI/no-CAN board test with VTC and synthetic target:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\run_board_vision_algorithm_test.ps1 -ProjectDir <PLinProjectDir> -SshKey .\.ssh_board\id_ed25519_30tai -UseVtc -SyntheticTarget
 ```
 
 Expected behavior after the physical SDI input is fixed:

@@ -9,6 +9,7 @@ param(
     [string]$SshKey = "",
     [int]$RunSeconds = 20,
     [switch]$UseVtc,
+    [switch]$SyntheticTarget,
     [switch]$SkipUpload,
     [switch]$SkipBuild,
     [switch]$DryRun
@@ -64,6 +65,7 @@ Write-Host "RemoteLog:  $RemoteLogDir"
 Write-Host "LocalLog:   $LocalRunLogDir"
 Write-Host "RunSeconds: $RunSeconds"
 Write-Host "InputMode:  $(if ($UseVtc) { 'VTC internal source' } else { 'Real SDI camera' })"
+Write-Host "Synthetic:  $SyntheticTarget"
 Write-Host "CAN:        DRYRUN, no can0 write"
 Write-Host "SkipUpload: $SkipUpload"
 Write-Host "SkipBuild:  $SkipBuild"
@@ -121,7 +123,8 @@ Run-Step "Create no-CAN vision configs" {
     & ssh @SshOptionArgs $SshTarget $remoteConfig
 } "ssh $SshTarget `"<create vision configs>`""
 
-$remoteRun = "rm -rf '$RemoteLogDir' && mkdir -p '$RemoteLogDir' && cd '$RemoteDir' && AIM_FOLLOW_CAN_DRYRUN=1 timeout '$RunSeconds' ./build/ZG/sdicamera+yolov5+hdmi '$RemoteConfigPath' > '$RemoteLogDir/app.log' 2>&1; ret=`$?; echo `$ret > '$RemoteLogDir/exit_code.txt'; grep -n 'ImageMake Timeout\|accept 0 data\|\[CAN DRYRUN\]\|\[AIM FOLLOW\]\|\[DISTANCE DEBUG\]\|\[YOLO DEBUG\]\|All actors started\|All actors stopped' '$RemoteLogDir/app.log' | tail -120 || true; exit 0"
+$syntheticEnv = if ($SyntheticTarget) { "AIM_FOLLOW_SYNTHETIC_TARGET=1 " } else { "" }
+$remoteRun = "rm -rf '$RemoteLogDir' && mkdir -p '$RemoteLogDir' && cd '$RemoteDir' && AIM_FOLLOW_CAN_DRYRUN=1 ${syntheticEnv}timeout '$RunSeconds' ./build/ZG/sdicamera+yolov5+hdmi '$RemoteConfigPath' > '$RemoteLogDir/app.log' 2>&1; ret=`$?; echo `$ret > '$RemoteLogDir/exit_code.txt'; grep -n 'ImageMake Timeout\|accept 0 data\|\[CAN DRYRUN\]\|\[AIM FOLLOW\]\|\[DISTANCE DEBUG\]\|\[YOLO DEBUG\]\|\[SYNTHETIC TARGET\]\|All actors started\|All actors stopped' '$RemoteLogDir/app.log' | tail -120 || true; exit 0"
 Run-Step "Run vision/algorithm test" {
     & ssh @SshOptionArgs $SshTarget $remoteRun
 } "ssh $SshTarget `"$remoteRun`""
@@ -143,7 +146,7 @@ $analyzeArgs = @(
     "-File", (Join-Path $RepoRoot "tools\analyze_vision_algorithm_logs.ps1"),
     "-LogDir", $LocalRunLogDir
 )
-if ($UseVtc) {
+if ($UseVtc -and -not $SyntheticTarget) {
     $analyzeArgs += "-AllowNoTarget"
 }
 & powershell @analyzeArgs
