@@ -33,6 +33,7 @@ tools/
   find_30tai_board.ps1
   deploy_30tai.ps1
   sync_to_plin_project.ps1
+  verify_plin_integration.ps1
   analyze_smoke_logs.ps1
 
 integration/
@@ -74,6 +75,12 @@ Use `-DryRun` first to inspect the copy and CMake checks:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\tools\sync_to_plin_project.ps1 -ProjectDir <PLinProjectDir> -DryRun
+```
+
+After syncing, run the integration verifier:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\verify_plin_integration.ps1 -ProjectDir <PLinProjectDir>
 ```
 
 See:

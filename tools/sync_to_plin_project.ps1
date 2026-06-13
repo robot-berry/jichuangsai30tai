@@ -48,7 +48,8 @@ $toolNames = @(
     "analyze_smoke_logs.ps1",
     "check_30tai_connection.ps1",
     "deploy_30tai.ps1",
-    "find_30tai_board.ps1"
+    "find_30tai_board.ps1",
+    "verify_plin_integration.ps1"
 )
 
 foreach ($toolName in $toolNames) {
