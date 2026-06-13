@@ -1,13 +1,19 @@
 param(
     [string]$BoardIp = "192.168.125.171",
     [string]$User = "root",
-    [string]$RemoteDir = "/home/fmsh/fpai_demo_src",
+    [string]$RemoteDir = "/home/work/fpai_demo_app/examples/codex/fpai_demo_src",
     [string]$RemoteSmokeLogDir = "/tmp/aim_follow_smoke",
     [string]$LocalLogDir = "",
     [string]$ProjectDir = "",
+    [string]$SshKey = "",
     [switch]$Build,
     [switch]$SmokeTest,
     [switch]$FetchLogs,
+    [switch]$LowMemoryBuild,
+    [switch]$UseBoardReferenceModel,
+    [string]$SmokeConfigPath = "configs/ZG/sdicamera+yolov5+hdmi.yaml",
+    [string]$BoardModelJson = "/home/work/fpai_demo_app/examples/1_single_input+ai/PLin+SingleNet+HDMI/imodel/ZG/yolov5s_352x640_ZG.json",
+    [string]$BoardModelRaw = "/home/work/fpai_demo_app/examples/1_single_input+ai/PLin+SingleNet+HDMI/imodel/ZG/yolov5s_352x640_ZG.raw",
     [switch]$DryRun
 )
 
@@ -28,6 +34,12 @@ $ArchiveName = "plin_singlenet_hdmi_30tai.tar.gz"
 $ArchivePath = Join-Path $env:TEMP $ArchiveName
 $RemoteArchive = "/tmp/$ArchiveName"
 $SshTarget = "$User@$BoardIp"
+$SshOptionArgs = @("-o", "ConnectTimeout=10")
+if (-not [string]::IsNullOrWhiteSpace($SshKey)) {
+    $SshKey = (Resolve-Path $SshKey).Path
+    $SshOptionArgs += @("-i", $SshKey)
+}
+$SshOptions = ($SshOptionArgs | ForEach-Object { "'$_'" }) -join " "
 if ([string]::IsNullOrWhiteSpace($LocalLogDir)) {
     $LocalLogDir = Join-Path $ProjectDir "board_smoke_logs"
 }
@@ -71,6 +83,9 @@ Write-Host "Board:      $SshTarget"
 Write-Host "RemoteDir:  $RemoteDir"
 Write-Host "RemoteLog:  $RemoteSmokeLogDir"
 Write-Host "LocalLog:   $LocalLogDir"
+if (-not [string]::IsNullOrWhiteSpace($SshKey)) {
+    Write-Host "SSH key:    $SshKey"
+}
 
 Run-Step "Check SSH port" "powershell -NoProfile -Command `"`$client = New-Object System.Net.Sockets.TcpClient; `$task = `$client.ConnectAsync('$BoardIp',22); if (`$task.Wait(3000)) { `$client.Connected } else { `$false }; `$client.Close()`""
 
@@ -105,19 +120,30 @@ if (-not $DryRun) {
     & tar @tarArgs
 }
 
-Run-Step "Upload archive" "scp -o ConnectTimeout=10 '$ArchivePath' '${SshTarget}:$RemoteArchive'"
+Run-Step "Upload archive" "scp $SshOptions '$ArchivePath' '${SshTarget}:$RemoteArchive'"
 
 $remoteSetup = "rm -rf '$RemoteDir' && mkdir -p '$RemoteDir' && tar -xzf '$RemoteArchive' -C '$RemoteDir' --strip-components=1 && chmod +x '$RemoteDir/build_30tai.sh' '$RemoteDir/aim_follow_control/test/run_30tai_smoke_test.sh'"
-Run-Step "Unpack on board" "ssh -o ConnectTimeout=10 '$SshTarget' `"$remoteSetup`""
+Run-Step "Unpack on board" "ssh $SshOptions '$SshTarget' `"$remoteSetup`""
 
 if ($Build) {
-    $remoteBuild = "cd '$RemoteDir' && ./build_30tai.sh"
-    Run-Step "Build on board" "ssh -o ConnectTimeout=10 '$SshTarget' `"$remoteBuild`""
+    if ($LowMemoryBuild) {
+        $remoteBuild = "chmod 600 /swapfile 2>/dev/null || true; swapon /swapfile 2>/dev/null || true; cd '$RemoteDir' && cmake -S . -B build/ZG -DTARGET_CHIP=ZG -DCMAKE_PREFIX_PATH=/usr/cmake -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_CXX_FLAGS='-O0 -g0' -DCMAKE_C_FLAGS='-O0 -g0' && cmake --build build/ZG -j1 && cmake --build build/ZG --target stage_bundle"
+    } else {
+        $remoteBuild = "cd '$RemoteDir' && ./build_30tai.sh"
+    }
+    Run-Step "Build on board" "ssh $SshOptions '$SshTarget' `"$remoteBuild`""
+}
+
+if ($UseBoardReferenceModel) {
+    $boardSmokeConfigPath = "configs/ZG/sdicamera+yolov5+hdmi_board_model.yaml"
+    $remoteConfig = "cd '$RemoteDir/build/ZG/deploy/ZG' && cp 'configs/ZG/sdicamera+yolov5+hdmi.yaml' '$boardSmokeConfigPath' && sed -i 's#./imodel/ZG/yolov5s_plin_352x640_ZG.json#$BoardModelJson#' '$boardSmokeConfigPath' && sed -i 's#./imodel/ZG/yolov5s_plin_352x640_ZG.raw#$BoardModelRaw#' '$boardSmokeConfigPath' && sed -i 's/ocm_option: 1/ocm_option: 0/' '$boardSmokeConfigPath' && sed -i 's/detpost: true/detpost: false/' '$boardSmokeConfigPath'"
+    Run-Step "Create board reference model config" "ssh $SshOptions '$SshTarget' `"$remoteConfig`""
+    $SmokeConfigPath = $boardSmokeConfigPath
 }
 
 if ($SmokeTest) {
-    $remoteSmoke = "cd '$RemoteDir' && RUN_SECONDS=20 ./aim_follow_control/test/run_30tai_smoke_test.sh '$RemoteDir/build/ZG/deploy/ZG' sdicamera+yolov5+hdmi configs/ZG/sdicamera+yolov5+hdmi.yaml '$RemoteSmokeLogDir'"
-    Run-Step "Run smoke test" "ssh -o ConnectTimeout=10 '$SshTarget' `"$remoteSmoke`""
+    $remoteSmoke = "cd '$RemoteDir' && RUN_SECONDS=20 ./aim_follow_control/test/run_30tai_smoke_test.sh '$RemoteDir/build/ZG/deploy/ZG' sdicamera+yolov5+hdmi '$SmokeConfigPath' '$RemoteSmokeLogDir'"
+    Run-Step "Run smoke test" "ssh $SshOptions '$SshTarget' `"$remoteSmoke`""
 }
 
 if ($FetchLogs) {
@@ -126,7 +152,7 @@ if ($FetchLogs) {
     if (-not $DryRun) {
         New-Item -ItemType Directory -Force -Path $localRunLogDir | Out-Null
     }
-    Run-Step "Fetch smoke logs" "scp -r -o ConnectTimeout=10 '${SshTarget}:$RemoteSmokeLogDir/*' '$localRunLogDir/'"
+    Run-Step "Fetch smoke logs" "scp -r $SshOptions '${SshTarget}:$RemoteSmokeLogDir/*' '$localRunLogDir/'"
     Write-Host "Fetched smoke logs to: $localRunLogDir"
 }
 

@@ -3,9 +3,10 @@ param(
     [string]$ProjectDir,
     [string]$BoardIp = "192.168.125.171",
     [string]$User = "root",
-    [string]$RemoteDir = "/home/fmsh/fpai_demo_src",
+    [string]$RemoteDir = "/home/work/fpai_demo_app/examples/codex/fpai_demo_src",
     [string]$RemoteSmokeLogDir = "/tmp/aim_follow_smoke",
     [string]$LocalLogDir = "",
+    [string]$SshKey = "",
     [switch]$DryRun
 )
 
@@ -47,6 +48,10 @@ Write-Host "Board:        $User@$BoardIp"
 Write-Host "RemoteDir:    $RemoteDir"
 Write-Host "RemoteLogDir: $RemoteSmokeLogDir"
 Write-Host "LocalLogDir:  $LocalLogDir"
+if (-not [string]::IsNullOrWhiteSpace($SshKey)) {
+    $SshKey = (Resolve-Path $SshKey).Path
+    Write-Host "SSH key:      $SshKey"
+}
 Write-Host "DryRun:       $DryRun"
 
 Run-Step "1. Preflight with board check" {
@@ -58,6 +63,9 @@ Run-Step "1. Preflight with board check" {
         "-BoardIp", $BoardIp,
         "-CheckBoard"
     )
+    if (-not [string]::IsNullOrWhiteSpace($SshKey)) {
+        $args += @("-SshKey", $SshKey)
+    }
 
     if ($DryRun) {
         Write-Host ("powershell " + ($args -join " "))
@@ -83,9 +91,14 @@ Run-Step "2. Deploy, build, run smoke test, and fetch logs" {
         "-RemoteSmokeLogDir", $RemoteSmokeLogDir,
         "-LocalLogDir", $LocalLogDir,
         "-Build",
+        "-LowMemoryBuild",
+        "-UseBoardReferenceModel",
         "-SmokeTest",
         "-FetchLogs"
     )
+    if (-not [string]::IsNullOrWhiteSpace($SshKey)) {
+        $args += @("-SshKey", $SshKey)
+    }
 
     if ($DryRun) {
         $args += "-DryRun"

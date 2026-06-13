@@ -44,6 +44,12 @@ Check the board connection:
 powershell -ExecutionPolicy Bypass -File .\tools\check_30tai_connection.ps1 -BoardIp 192.168.125.171
 ```
 
+If a temporary SSH key has been installed on the board, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\check_30tai_connection.ps1 -BoardIp 192.168.125.171 -SshKey .\.ssh_board\id_ed25519_30tai
+```
+
 Expected evidence:
 
 - PC has an IPv4 address in `192.168.125.0/24`.
@@ -64,7 +70,7 @@ Do not run the real-board acceptance script until SSH is reachable.
 Run:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\tools\run_board_acceptance.ps1 -ProjectDir <PLinProjectDir>
+powershell -ExecutionPolicy Bypass -File .\tools\run_board_acceptance.ps1 -ProjectDir <PLinProjectDir> -SshKey .\.ssh_board\id_ed25519_30tai
 ```
 
 This command performs:
@@ -77,6 +83,15 @@ This command performs:
 6. Smoke-log analysis.
 7. Generation of `acceptance_report.md`.
 
+On the current 30TAI board, use the low-memory build and board reference model path. The wrapper enables these options by default. For lower-level manual deployment, pass:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\deploy_30tai.ps1 -ProjectDir <PLinProjectDir> -Build -LowMemoryBuild -UseBoardReferenceModel -SmokeTest -FetchLogs -SshKey .\.ssh_board\id_ed25519_30tai
+```
+
+The low-memory build enables `/swapfile` and compiles with `-O0 -g0 -j1`. The board reference model avoids the DetPost hardware path on boards whose bitstream does not expose DetPostZG.
+Omit `-SshKey` if password login is preferred.
+
 Required generated evidence:
 
 | Evidence file | Required content |
@@ -87,6 +102,8 @@ Required generated evidence:
 | `candump.log` | CAN ID `0x201` chassis command |
 | `candump.log` | CAN ID `0x38A` gimbal command |
 | `acceptance_report.md` | Result `PASS` |
+
+If the app starts but logs `ImageMake Timeout` and `accept 0 data`, troubleshoot camera/SDI/HDMI input before judging the aim/follow module. In that state the binary is running, but no valid frame reaches YOLO post-processing.
 
 ## 4. Safe Motion Test
 
@@ -176,7 +193,7 @@ Recommended final evidence package:
 - Integrated PLin project commit or archive name.
 - `acceptance_report.md`.
 - At least one saved HDMI frame showing the detection box and distance text.
-- Short note with final tuned parameters.
+- Filled tuning log copied from `docs/TUNING_LOG_TEMPLATE.md`.
 
 ## 7. Completion Criteria
 
@@ -189,4 +206,3 @@ The project can be treated as accepted only when:
 - `acceptance_report.md` reports `PASS`.
 - Lifted-wheel gimbal and chassis tests pass.
 - Ground following tests pass at the selected target distance.
-

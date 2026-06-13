@@ -1,16 +1,25 @@
 param(
     [string]$BoardIp = "192.168.125.171",
     [string]$User = "root",
+    [string]$SshKey = "",
     [int]$SshPort = 22,
     [int]$TcpTimeoutMs = 3000
 )
 
 $ErrorActionPreference = "Continue"
 $SshTarget = "$User@$BoardIp"
+$SshOptionArgs = @("-o", "BatchMode=yes", "-o", "ConnectTimeout=5", "-o", "StrictHostKeyChecking=no", "-p", "$SshPort")
+if (-not [string]::IsNullOrWhiteSpace($SshKey)) {
+    $SshKey = (Resolve-Path $SshKey).Path
+    $SshOptionArgs += @("-i", $SshKey)
+}
 
 Write-Host "==== 30TAI connection preflight ====" -ForegroundColor Cyan
 Write-Host "Board: $SshTarget"
 Write-Host "Port:  $SshPort"
+if (-not [string]::IsNullOrWhiteSpace($SshKey)) {
+    Write-Host "Key:   $SshKey"
+}
 Write-Host ""
 
 function Test-TcpPortFast {
@@ -58,7 +67,7 @@ $tcpOk = Test-TcpPortFast -HostName $BoardIp -Port $SshPort -TimeoutMs $TcpTimeo
 Write-Host "TCP $BoardIp`:$SshPort reachable: $tcpOk"
 
 Write-Host "[6/6] SSH batch test" -ForegroundColor Cyan
-ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=no -p $SshPort $SshTarget "echo connected"
+ssh @SshOptionArgs $SshTarget "echo connected"
 if ($LASTEXITCODE -ne 0) {
     Write-Host ""
     Write-Host "SSH did not complete. If ping/TCP also fail, check board power, cable, IP address, and PC network segment." -ForegroundColor Yellow

@@ -45,6 +45,7 @@ integration/
 docs/
   ALGORITHM_DESIGN.md
   BOARD_ACCEPTANCE_RUNBOOK.md
+  TUNING_LOG_TEMPLATE.md
 
 STATUS.md
 ```
@@ -114,19 +115,21 @@ After this module has been integrated into the PLin application project, run:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\tools\check_30tai_connection.ps1
 powershell -ExecutionPolicy Bypass -File .\tools\check_deploy_dry_run.ps1 -ProjectDir <PLinProjectDir>
-powershell -ExecutionPolicy Bypass -File .\tools\deploy_30tai.ps1 -ProjectDir <PLinProjectDir> -Build -SmokeTest -FetchLogs
+powershell -ExecutionPolicy Bypass -File .\tools\deploy_30tai.ps1 -ProjectDir <PLinProjectDir> -Build -LowMemoryBuild -UseBoardReferenceModel -SmokeTest -FetchLogs
 powershell -ExecutionPolicy Bypass -File .\tools\analyze_smoke_logs.ps1 -LogDir <FetchedSmokeLogDir>
 ```
 
 Or run the real-board acceptance wrapper after SSH is reachable:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\tools\run_board_acceptance.ps1 -ProjectDir <PLinProjectDir>
+powershell -ExecutionPolicy Bypass -File .\tools\run_board_acceptance.ps1 -ProjectDir <PLinProjectDir> -SshKey .\.ssh_board\id_ed25519_30tai
 ```
 
 The real-board wrapper writes `acceptance_report.md` into the fetched smoke-log directory after log analysis passes.
+If no `-SshKey` is provided, the scripts keep the normal SSH password-login behavior.
 
 For the final lifted-wheel and ground tests, follow `docs/BOARD_ACCEPTANCE_RUNBOOK.md`.
+Use `docs/TUNING_LOG_TEMPLATE.md` to record final parameters and physical-test evidence.
 
 If the board IP may have changed:
 

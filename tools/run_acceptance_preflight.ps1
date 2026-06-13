@@ -2,6 +2,7 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$ProjectDir,
     [string]$BoardIp = "192.168.125.171",
+    [string]$SshKey = "",
     [switch]$CheckBoard,
     [switch]$KeepBuild
 )
@@ -26,6 +27,10 @@ Write-Host "==== 30TAI aim/follow acceptance preflight ====" -ForegroundColor Cy
 Write-Host "RepoRoot:   $RepoRoot"
 Write-Host "ProjectDir: $ProjectDir"
 Write-Host "BoardIp:    $BoardIp"
+if (-not [string]::IsNullOrWhiteSpace($SshKey)) {
+    $SshKey = (Resolve-Path $SshKey).Path
+    Write-Host "SSH key:    $SshKey"
+}
 Write-Host "CheckBoard: $CheckBoard"
 
 Run-Step "1. Local module build and unit test" {
@@ -63,9 +68,16 @@ Run-Step "3. 30TAI deploy dry run" {
 
 if ($CheckBoard) {
     Run-Step "4. Board connection preflight" {
-        & powershell -NoProfile -ExecutionPolicy Bypass `
-            -File (Join-Path $RepoRoot "tools\check_30tai_connection.ps1") `
-            -BoardIp $BoardIp
+        $args = @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", (Join-Path $RepoRoot "tools\check_30tai_connection.ps1"),
+            "-BoardIp", $BoardIp
+        )
+        if (-not [string]::IsNullOrWhiteSpace($SshKey)) {
+            $args += @("-SshKey", $SshKey)
+        }
+        & powershell @args
         if ($LASTEXITCODE -ne 0) {
             throw "Board connection preflight failed."
         }

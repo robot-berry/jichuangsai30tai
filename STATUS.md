@@ -33,6 +33,7 @@ It is not a full copy of the original PLin + SingleNet + HDMI demo application. 
 - Integration documentation is available under `integration/`.
 - Board-side helper scripts are available under `tools/`.
 - Final board acceptance runbook is available under `docs/BOARD_ACCEPTANCE_RUNBOOK.md`.
+- Real-car tuning log template is available under `docs/TUNING_LOG_TEMPLATE.md`.
 - One-command acceptance preflight is available:
 
 ```powershell
@@ -59,35 +60,43 @@ The deploy dry run against the currently integrated PLin project also passed and
 
 ## Not yet fully verified
 
-Actual 30TAI board build and runtime behavior are not yet verified.
+Actual 30TAI board build and startup behavior have been partially verified.
 
-Reason:
+Verified on 30TAI:
 
-- The expected board IP `192.168.125.171` has not been reachable from the PC.
-- TCP port `22` was not open during the latest checks.
-- ARP did not show a reachable board entry.
+- SSH reached `192.168.125.171` after using the correct board Ethernet interface.
+- The PLin project built on board after enabling `/swapfile` and using single-thread low-memory compile flags.
+- The runtime bundle was staged successfully.
+- The app started on board and emitted `[AIM FOLLOW CONFIG] startup ...`, proving the integrated aim/follow module was present in the deployed binary.
 
-Latest observed network evidence:
+Current remaining blocker:
 
 ```text
-No host with TCP port 22 open was found in 192.168.125.171-171.
+ZG330 ImageMake Timeout after 1000 ms, data_in_num=0
+Image size is 640 * 352, but accept 0 data
 ```
 
-This points to board power, Ethernet link, static IP, or network-segment state rather than a password problem.
+This indicates that the application is running, but valid camera/image input is not reaching ImageMake, so YOLO post-processing and target-driven aim/follow commands have not yet been exercised.
+
+Board-specific notes from the current 30TAI:
+
+- The default `yolov5s_plin_352x640_ZG` model expects DetPost hardware and aborts on this board with `No DetPost HardWare`.
+- The board's reference `yolov5s_352x640_ZG` model with `detpost: false` starts successfully.
+- The board does not provide `candump`, so CAN evidence currently comes from app logs unless CAN utilities are installed.
 
 ## Next required board steps
 
 After the board is reachable:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\tools\check_30tai_connection.ps1
-powershell -ExecutionPolicy Bypass -File .\tools\run_board_acceptance.ps1 -ProjectDir <PLinProjectDir>
+powershell -ExecutionPolicy Bypass -File .\tools\check_30tai_connection.ps1 -SshKey .\.ssh_board\id_ed25519_30tai
+powershell -ExecutionPolicy Bypass -File .\tools\run_board_acceptance.ps1 -ProjectDir <PLinProjectDir> -SshKey .\.ssh_board\id_ed25519_30tai
 ```
 
 The lower-level manual sequence remains:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\tools\deploy_30tai.ps1 -ProjectDir <PLinProjectDir> -Build -SmokeTest -FetchLogs
+powershell -ExecutionPolicy Bypass -File .\tools\deploy_30tai.ps1 -ProjectDir <PLinProjectDir> -Build -LowMemoryBuild -UseBoardReferenceModel -SmokeTest -FetchLogs -SshKey .\.ssh_board\id_ed25519_30tai
 powershell -ExecutionPolicy Bypass -File .\tools\analyze_smoke_logs.ps1 -LogDir <FetchedSmokeLogDir>
 ```
 
