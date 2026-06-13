@@ -122,7 +122,7 @@ if (-not $DryRun) {
 
 Run-Step "Upload archive" "scp $SshOptions '$ArchivePath' '${SshTarget}:$RemoteArchive'"
 
-$remoteSetup = "rm -rf '$RemoteDir' && mkdir -p '$RemoteDir' && tar -xzf '$RemoteArchive' -C '$RemoteDir' --strip-components=1 && chmod +x '$RemoteDir/build_30tai.sh' '$RemoteDir/aim_follow_control/test/run_30tai_smoke_test.sh'"
+$remoteSetup = "rm -rf '$RemoteDir' && mkdir -p '$RemoteDir' && tar -xzf '$RemoteArchive' -C '$RemoteDir' --strip-components=1 && find '$RemoteDir' -exec touch -h {} + && chmod +x '$RemoteDir/build_30tai.sh' '$RemoteDir/aim_follow_control/test/run_30tai_smoke_test.sh'"
 Run-Step "Unpack on board" "ssh $SshOptions '$SshTarget' `"$remoteSetup`""
 
 if ($Build) {

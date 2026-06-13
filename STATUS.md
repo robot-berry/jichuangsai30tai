@@ -74,6 +74,9 @@ Verified on 30TAI:
 - The PLin project built on board after enabling `/swapfile` and using single-thread low-memory compile flags.
 - The runtime bundle was staged successfully.
 - The app started on board and emitted `[AIM FOLLOW CONFIG] startup ...`, proving the integrated aim/follow module was present in the deployed binary.
+- After switching the PLin main program to use `MonocularDistanceEstimator`, the app rebuilt on 30TAI and produced `build/ZG/sdicamera+yolov5+hdmi`.
+- Direct board startup of that rebuilt binary emitted `[AIM FOLLOW CONFIG]` and reached `All actors started...`.
+- A board clock skew issue caused uploaded source files to appear from the future and made `stage_bundle` repeat compilation; deploy scripts now touch unpacked files on the board after extraction.
 
 Current remaining blocker:
 

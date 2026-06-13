@@ -114,6 +114,7 @@ powershell -ExecutionPolicy Bypass -File .\tools\deploy_30tai.ps1 -ProjectDir <P
 
 The low-memory build enables `/swapfile` and compiles with `-O0 -g0 -j1`. The board reference model avoids the DetPost hardware path on boards whose bitstream does not expose DetPostZG.
 Omit `-SshKey` if password login is preferred.
+The deploy scripts touch unpacked source files on the board to avoid clock-skew rebuild loops when the PC file timestamps are newer than the board clock.
 
 Required generated evidence:
 
