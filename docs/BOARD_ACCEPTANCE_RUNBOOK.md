@@ -140,13 +140,15 @@ The diagnostic runs three cases:
 | Case | Purpose | Expected interpretation |
 | --- | --- | --- |
 | `original_plin` | Unmodified board PLin demo | If this also reports `accept 0 data`, the fault is before the added aim/follow module |
-| `integrated_board_model` | Current integrated app with board non-DetPost model | Confirms whether the deployed aim/follow binary starts and reaches the same input path |
+| `integrated_board_model` | Deploy-style integrated app path, when a deploy bundle exists | Confirms whether a staged deploy bundle starts |
+| `integrated_direct` | Current direct board build at `build/ZG/sdicamera+yolov5+hdmi` | Confirms whether the rebuilt aim/follow binary starts and reaches the same input path |
 | `integrated_vtc` | Same app with `camera.vtc: true` test-pattern input | Separates real SDI input loss from ImageMake/test-pattern behavior |
 
 Current observed board evidence:
 
-- `original_plin` and `integrated_board_model` both start actors but report `ImageMake Timeout` and `accept 0 data`.
-- `integrated_board_model` emits `[AIM FOLLOW CONFIG]`, proving the deployed binary contains the aim/follow module.
+- `original_plin` and `integrated_direct` both start actors but report `ImageMake Timeout` and `accept 0 data`.
+- `integrated_direct` emits `[AIM FOLLOW CONFIG]`, proving the deployed binary contains the aim/follow module.
+- `integrated_board_model` can be skipped on board images that build directly into `build/ZG/` instead of producing a `deploy/ZG/` bundle.
 - `integrated_vtc` runs without `ImageMake Timeout`, but it does not provide a real target frame, so it cannot prove final target following.
 - `/dev/video0` is not a normal V4L2 capture device on this board image; the PLin demo depends on the board-specific PL camera path.
 
