@@ -80,6 +80,12 @@ After the board is reachable:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\tools\check_30tai_connection.ps1
+powershell -ExecutionPolicy Bypass -File .\tools\run_board_acceptance.ps1 -ProjectDir <PLinProjectDir>
+```
+
+The lower-level manual sequence remains:
+
+```powershell
 powershell -ExecutionPolicy Bypass -File .\tools\deploy_30tai.ps1 -ProjectDir <PLinProjectDir> -Build -SmokeTest -FetchLogs
 powershell -ExecutionPolicy Bypass -File .\tools\analyze_smoke_logs.ps1 -LogDir <FetchedSmokeLogDir>
 ```

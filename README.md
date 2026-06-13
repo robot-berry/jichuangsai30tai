@@ -35,6 +35,7 @@ tools/
   sync_to_plin_project.ps1
   verify_plin_integration.ps1
   run_acceptance_preflight.ps1
+  run_board_acceptance.ps1
   analyze_smoke_logs.ps1
 
 integration/
@@ -113,6 +114,12 @@ powershell -ExecutionPolicy Bypass -File .\tools\check_30tai_connection.ps1
 powershell -ExecutionPolicy Bypass -File .\tools\check_deploy_dry_run.ps1 -ProjectDir <PLinProjectDir>
 powershell -ExecutionPolicy Bypass -File .\tools\deploy_30tai.ps1 -ProjectDir <PLinProjectDir> -Build -SmokeTest -FetchLogs
 powershell -ExecutionPolicy Bypass -File .\tools\analyze_smoke_logs.ps1 -LogDir <FetchedSmokeLogDir>
+```
+
+Or run the real-board acceptance wrapper after SSH is reachable:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\run_board_acceptance.ps1 -ProjectDir <PLinProjectDir>
 ```
 
 If the board IP may have changed:
