@@ -1,0 +1,27 @@
+# Build outputs
+build/
+build*/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+*.vcxproj
+*.vcxproj.filters
+*.sln
+
+# Local test and board logs
+board_smoke_logs/
+*.log
+
+# Temporary packages
+*.tar
+*.tar.gz
+*.zip
+*.tmp
+
+# Editor and OS files
+.vs/
+.vscode/ipch/
+*.user
+*.suo
+Thumbs.db
+Desktop.ini
