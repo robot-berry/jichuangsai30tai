@@ -110,6 +110,12 @@ Board-specific notes from the current 30TAI:
 - This means `/dev/video0` should not be treated as the physical camera input for this project; the camera must feed the PLin HDMI/SDI path expected by the current bitstream and YAML config.
 - The camera is physically connected to `SDI_IN_0`, which matches the current single-input code path using `camera_id = 0` and the first SDICamera base address. The remaining camera blocker is therefore signal/path validity on `SDI_IN_0`, not an intentional software switch to another camera index.
 - Because `integrated_direct_vtc` runs without ImageMake zero-data errors, the deployed app and downstream ImageMake/model/display pipeline are not the primary blocker. The failing path is the real external signal entering `SDI_IN_0`.
+- `tools/probe_30tai_sdi_modes.ps1` was added to run short tests with temporary camera width/height/fps configs. Latest probe result:
+  - `1920x1080@60`: actors start, but `ImageMake Timeout` / `accept 0 data`
+  - `1920x1080@30`: actors start, but `ImageMake Timeout` / `accept 0 data`
+  - `1280x720@60`: actors start, but `ImageMake Timeout` / `accept 0 data`
+  - `1280x720@30`: actors start, but `ImageMake Timeout` / `accept 0 data`
+- This makes a simple YAML resolution/fps mismatch less likely; continue checking SDI signal lock, cable/source output, and bitstream support for `SDI_IN_0`.
 - `tools/run_board_synthetic_control_test.ps1` was added for controller-only board validation when the camera path is unavailable.
 - Latest synthetic control test built `aim_follow_control` directly on 30TAI and passed:
   - synthetic box width -> monocular distance estimate -> follow controller path

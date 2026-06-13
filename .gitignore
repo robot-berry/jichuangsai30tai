@@ -13,6 +13,7 @@ board_smoke_logs/
 board_can_diagnostics/
 board_camera_path_diagnostics/
 board_readiness_reports/
+board_sdi_mode_probes/
 board_video_diagnostics/
 board_synthetic_logs/
 *.log

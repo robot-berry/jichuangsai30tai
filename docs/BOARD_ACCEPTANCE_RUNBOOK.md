@@ -141,6 +141,12 @@ To collect lower-level camera/PL path evidence, run:
 powershell -ExecutionPolicy Bypass -File .\tools\diagnose_30tai_camera_path.ps1 -SshKey .\.ssh_board\id_ed25519_30tai
 ```
 
+To check whether the failure is only a common camera resolution/fps mismatch, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\probe_30tai_sdi_modes.ps1 -SshKey .\.ssh_board\id_ed25519_30tai
+```
+
 The diagnostic runs three cases:
 
 | Case | Purpose | Expected interpretation |
@@ -160,6 +166,7 @@ Current observed board evidence:
 - `/dev/video0` reports `mvx / Linlon Video device` with a `2x2` default format, so it is not the physical camera source expected by the PLin input pipeline.
 - The active PLin configs declare `camera.type: hdmi` and `1920x1080@60`; the physical camera source must feed the HDMI/SDI/PL path expected by the current bitstream.
 - The current single-input code uses `camera_id = 0` and the first SDICamera base address, so a camera connected to `SDI_IN_0` is consistent with the software path. If `accept 0 data` remains, continue checking signal format, cable, camera output mode, and bitstream input status.
+- Temporary probes of `1920x1080@60`, `1920x1080@30`, `1280x720@60`, and `1280x720@30` all still produced `ImageMake Timeout` / `accept 0 data`, so the current evidence points beyond a simple YAML resolution/fps mismatch.
 
 ## 5. Controller-Only Board Test
 
