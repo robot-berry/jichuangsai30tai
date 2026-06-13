@@ -108,6 +108,12 @@ Verified on 30TAI:
   - real SDI frame path: FAIL (`ImageMake Timeout=10`, `accept 0 data=5`)
   - real target algorithm logs: `SKIPPED_NO_FRAME`
   - conclusion: application/model/HDMI/dry-run path starts, but physical `SDI_IN_0` has no valid frame input
+- `tools/verify_plin_integration.ps1` now checks the HDMI/no-CAN stage explicitly:
+  - `AIM_FOLLOW_CAN_DRYRUN`
+  - `DRYRUN id=0x...` CAN isolation logging
+  - HDMI `Target`, `Gimbal tracking`, `Chassis tracking`, and `CAN output` panel strings
+  - no-CAN vision test, vision log analyzer, and SDI triage scripts copied into the PLin project
+- Latest integration check against the current PLin project passed all enhanced gates.
 
 Current remaining blocker:
 

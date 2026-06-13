@@ -12,6 +12,9 @@ $BuildScript = Join-Path $ProjectDir "build_30tai.sh"
 $ModuleHeader = Join-Path $ProjectDir "aim_follow_control\include\aim_follow_controller.hpp"
 $ModuleSource = Join-Path $ProjectDir "aim_follow_control\src\aim_follow_controller.cpp"
 $SmokeScript = Join-Path $ProjectDir "aim_follow_control\test\run_30tai_smoke_test.sh"
+$VisionTestScript = Join-Path $ProjectDir "tools\run_board_vision_algorithm_test.ps1"
+$VisionAnalyzeScript = Join-Path $ProjectDir "tools\analyze_vision_algorithm_logs.ps1"
+$SdiTriageScript = Join-Path $ProjectDir "tools\run_sdi_input_triage.ps1"
 
 $checks = New-Object System.Collections.Generic.List[object]
 
@@ -47,6 +50,9 @@ Add-Check "Module source exists" (Test-Path $ModuleSource) $ModuleSource
 Add-Check "Module exposes MonocularDistanceEstimator" ($moduleHeaderText.Contains("MonocularDistanceEstimator")) $ModuleHeader
 Add-Check "Module implements monocular distance update" ($moduleSourceText.Contains("target_real_width_m") -and $moduleSourceText.Contains("filtered_distance_m_")) $ModuleSource
 Add-Check "Board smoke script exists" (Test-Path $SmokeScript) $SmokeScript
+Add-Check "No-CAN vision test script exists" (Test-Path $VisionTestScript) $VisionTestScript
+Add-Check "Vision log analyzer exists" (Test-Path $VisionAnalyzeScript) $VisionAnalyzeScript
+Add-Check "SDI triage script exists" (Test-Path $SdiTriageScript) $SdiTriageScript
 Add-Check "CMake includes aim_follow source" ($cmakeText.Contains("aim_follow_control/src/aim_follow_controller.cpp")) $CMakePath
 Add-Check "CMake includes aim_follow include dir" ($cmakeText.Contains("aim_follow_control/include")) $CMakePath
 Add-Check "Main includes aim_follow header" ($mainText.Contains('#include "aim_follow_controller.hpp"')) $MainPath
@@ -62,6 +68,11 @@ Add-Check "Main references chassis CAN 0x201" ($mainText.Contains("0x201") -or $
 Add-Check "Main references gimbal CAN 0x38A" ($mainText.Contains("0x38A") -or $mainText.Contains("GIMBAL_CAN_ID")) $MainPath
 Add-Check "Main sends chassis command" ($mainText.Contains("send_chassis_can_mode")) $MainPath
 Add-Check "Main sends gimbal command" ($mainText.Contains("send_gimbal_can_mode")) $MainPath
+Add-Check "Main supports CAN dry-run" ($mainText.Contains("AIM_FOLLOW_CAN_DRYRUN") -and $mainText.Contains("DRYRUN id=0x")) $MainPath
+Add-Check "Main displays HDMI target state" ($mainText.Contains("Target:{}  Distance:{}  Error:{:+.2f}m")) $MainPath
+Add-Check "Main displays HDMI gimbal tracking" ($mainText.Contains("Gimbal tracking: pitch={} yaw={}")) $MainPath
+Add-Check "Main displays HDMI chassis tracking" ($mainText.Contains("Chassis tracking: motor1={}rpm motor2={}rpm")) $MainPath
+Add-Check "Main displays HDMI CAN output state" ($mainText.Contains("CAN output: {}") -and $mainText.Contains("DRYRUN(no write)")) $MainPath
 
 $failed = @($checks | Where-Object { -not $_.Pass })
 
