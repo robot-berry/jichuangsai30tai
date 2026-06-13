@@ -4,6 +4,22 @@ This document describes how to integrate this focused project into the current P
 
 The goal is not to replace the original application. The goal is to add the aim/follow algorithm module after YOLO post-processing and before CAN output.
 
+## 0. Recommended sync command
+
+From this focused repository, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\sync_to_plin_project.ps1 -ProjectDir <PLinProjectDir>
+```
+
+Use `-DryRun` before copying:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\sync_to_plin_project.ps1 -ProjectDir <PLinProjectDir> -DryRun
+```
+
+The sync script copies `aim_follow_control/` and the board/log tools, then checks whether the PLin `CMakeLists.txt` already references the module source and include path.
+
 ## 1. Copy module into the PLin project
 
 Copy:
