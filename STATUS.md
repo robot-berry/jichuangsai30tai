@@ -83,6 +83,12 @@ Board-specific notes from the current 30TAI:
 - The default `yolov5s_plin_352x640_ZG` model expects DetPost hardware and aborts on this board with `No DetPost HardWare`.
 - The board's reference `yolov5s_352x640_ZG` model with `detpost: false` starts successfully.
 - The board does not provide `candump`, so CAN evidence currently comes from app logs unless CAN utilities are installed.
+- `tools/diagnose_30tai_video_input.ps1` compares the unmodified PLin demo, the integrated board-model config, and a `camera.vtc: true` test-pattern config.
+- Latest video-input diagnosis showed:
+  - `original_plin`: actors start, then `ImageMake Timeout` / `accept 0 data`
+  - `integrated_board_model`: actors start, `[AIM FOLLOW CONFIG]` appears, then the same `ImageMake Timeout` / `accept 0 data`
+  - `integrated_vtc`: actors start and no `ImageMake Timeout` appears during the short test, but no real target detections are produced
+- This points to real SDI/camera input state as the current blocker before closed-loop target following can be verified.
 
 ## Next required board steps
 
@@ -91,6 +97,12 @@ After the board is reachable:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\tools\check_30tai_connection.ps1 -SshKey .\.ssh_board\id_ed25519_30tai
 powershell -ExecutionPolicy Bypass -File .\tools\run_board_acceptance.ps1 -ProjectDir <PLinProjectDir> -SshKey .\.ssh_board\id_ed25519_30tai
+```
+
+If the app starts but no target logs appear, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\diagnose_30tai_video_input.ps1 -SshKey .\.ssh_board\id_ed25519_30tai
 ```
 
 The lower-level manual sequence remains:

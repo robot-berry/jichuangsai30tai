@@ -36,6 +36,7 @@ tools/
   verify_plin_integration.ps1
   run_acceptance_preflight.ps1
   run_board_acceptance.ps1
+  diagnose_30tai_video_input.ps1
   write_acceptance_report.ps1
   analyze_smoke_logs.ps1
 
@@ -127,6 +128,14 @@ powershell -ExecutionPolicy Bypass -File .\tools\run_board_acceptance.ps1 -Proje
 
 The real-board wrapper writes `acceptance_report.md` into the fetched smoke-log directory after log analysis passes.
 If no `-SshKey` is provided, the scripts keep the normal SSH password-login behavior.
+
+If the app starts but no `[AIM FOLLOW]` or `[DISTANCE DEBUG]` logs appear, isolate the image input path:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\diagnose_30tai_video_input.ps1 -SshKey .\.ssh_board\id_ed25519_30tai
+```
+
+This compares the unmodified board PLin demo, the integrated board-model config, and a `vtc:true` test-pattern config.
 
 For the final lifted-wheel and ground tests, follow `docs/BOARD_ACCEPTANCE_RUNBOOK.md`.
 Use `docs/TUNING_LOG_TEMPLATE.md` to record final parameters and physical-test evidence.

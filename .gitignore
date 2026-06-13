@@ -10,6 +10,7 @@ CMakeCache.txt
 
 # Local test and board logs
 board_smoke_logs/
+board_video_diagnostics/
 *.log
 .ssh_board/
 
