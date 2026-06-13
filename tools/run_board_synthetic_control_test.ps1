@@ -47,6 +47,11 @@ function Run-Step {
     }
 }
 
+function Utf8-Text {
+    param([string]$Base64)
+    return [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($Base64))
+}
+
 Write-Host "==== 30TAI synthetic aim/follow control test ====" -ForegroundColor Cyan
 Write-Host "RepoRoot:     $RepoRoot"
 Write-Host "Board:        $SshTarget"
@@ -119,8 +124,41 @@ if (-not $DryRun) {
     if (Test-Path $logPath) {
         Write-Host ""
         Write-Host "[Synthetic summary]" -ForegroundColor Cyan
-        Select-String -Path $logPath -Pattern "\[SYNTH SUMMARY\]|\[SYNTH CAN 0x201\]|\[SYNTH CAN 0x38A\]" |
+        $matchedLines = Select-String -Path $logPath -Pattern "\[SYNTH SUMMARY\]|\[SYNTH CAN 0x201\]|\[SYNTH CAN 0x38A\]"
+        $matchedLines |
             Select-Object -Last 12 |
             ForEach-Object { $_.Line }
+
+        $logText = Get-Content -Path $logPath -Raw
+        $hasGimbalCan = $logText -match "\[SYNTH CAN 0x38A\]"
+        $hasChassisCan = $logText -match "\[SYNTH CAN 0x201\]"
+        $hasYawChange = $logText -match "yaw_change=1|yaw_change=true"
+        $hasPitchChange = $logText -match "pitch_change=1|pitch_change=true"
+        $hasForward = $logText -match "forward=1|forward=true"
+        $hasBackward = $logText -match "backward=1|backward=true"
+        $hasLostStop = $logText -match "lost_stop=1|lost_stop=true"
+
+        $gimbalPass = $hasGimbalCan -and $hasYawChange -and $hasPitchChange
+        $chassisPass = $hasChassisCan -and $hasForward -and $hasBackward -and $hasLostStop
+
+        Write-Host ""
+        Write-Host "[Tracking split result]" -ForegroundColor Cyan
+        if ($gimbalPass) {
+            Write-Host (Utf8-Text "5LqR5Y+w6L+96LiqOiBQQVNT77yM5bey55Sf5oiQIDB4MzhBIOS6keWPsCBDQU4g5bin77yM5LiUIHBpdGNoL3lhdyDkvJrpmo/nm67moIflgY/np7vlj5jljJbjgII=") -ForegroundColor Green
+        } else {
+            Write-Host (Utf8-Text "5LqR5Y+w6L+96LiqOiBGQUlM77yM6K+35qOA5p+lIDB4MzhBIOW4p+OAgXlhd19jaGFuZ2XjgIFwaXRjaF9jaGFuZ2XjgII=") -ForegroundColor Red
+        }
+
+        if ($chassisPass) {
+            Write-Host (Utf8-Text "5bCP6L2m6L+96LiqOiBQQVNT77yM5bey55Sf5oiQIDB4MjAxIOWwj+i9piBDQU4g5bin77yM5LiU5YyF5ZCr6L+c6Led56a75YmN6L+b44CB6L+R6Led56a75ZCO6YCA44CB55uu5qCH5Lii5aSx5YGc5q2i6YC76L6R44CC") -ForegroundColor Green
+        } else {
+            Write-Host (Utf8-Text "5bCP6L2m6L+96LiqOiBGQUlM77yM6K+35qOA5p+lIDB4MjAxIOW4p+OAgWZvcndhcmTjgIFiYWNrd2FyZOOAgWxvc3Rfc3RvcOOAgg==") -ForegroundColor Red
+        }
+
+        if ($SendCan) {
+            Write-Host (Utf8-Text "Q0FOIOWunuWPkTogRU5BQkxFRO+8jOacrOasoeS8muWwneivleWGmeWFpSBjYW4w77yb5pyq6L+e5o6l5bCP6L2m5pe25Y+v6IO95Zug5Li65pegIEFDSyDov5vlhaUgRVJST1ItUEFTU0lWReOAgg==") -ForegroundColor Yellow
+        } else {
+            Write-Host (Utf8-Text "Q0FOIOWunuWPkTogU0tJUFBFRO+8jOacrOasoeWPqumqjOivgeeul+azlei+k+WHuuWSjCBDQU4g6L296I2355Sf5oiQ77yM5LiN5ZCRIGNhbjAg55yf5a6e5Y+R6YCB44CC") -ForegroundColor Yellow
+        }
     }
 }
