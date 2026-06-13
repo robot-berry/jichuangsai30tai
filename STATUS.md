@@ -107,6 +107,7 @@ The goal is complete only after all of these are true:
 - `[DISTANCE DEBUG]` appears when distance is displayed.
 - `candump.log` contains chassis CAN ID `0x201`.
 - `candump.log` contains gimbal CAN ID `0x38A`.
+- `acceptance_report.md` is generated from the fetched board logs.
 - Physical test confirms:
   - target farther than target distance -> forward command
   - target closer than target distance -> backward/stop command

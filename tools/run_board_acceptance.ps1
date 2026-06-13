@@ -122,6 +122,16 @@ Run-Step "3. Analyze fetched smoke logs" {
     }
 }
 
+Run-Step "4. Write acceptance report" {
+    & powershell -NoProfile -ExecutionPolicy Bypass `
+        -File (Join-Path $RepoRoot "tools\write_acceptance_report.ps1") `
+        -LogDir $afterLatest.FullName
+    if ($LASTEXITCODE -ne 0) {
+        throw "Acceptance report generation failed."
+    }
+}
+
 Write-Host ""
 Write-Host "30TAI real-board acceptance passed." -ForegroundColor Green
 Write-Host "Analyzed log directory: $($afterLatest.FullName)"
+Write-Host "Acceptance report: $(Join-Path $afterLatest.FullName 'acceptance_report.md')"

@@ -36,6 +36,7 @@ tools/
   verify_plin_integration.ps1
   run_acceptance_preflight.ps1
   run_board_acceptance.ps1
+  write_acceptance_report.ps1
   analyze_smoke_logs.ps1
 
 integration/
@@ -121,6 +122,8 @@ Or run the real-board acceptance wrapper after SSH is reachable:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\tools\run_board_acceptance.ps1 -ProjectDir <PLinProjectDir>
 ```
+
+The real-board wrapper writes `acceptance_report.md` into the fetched smoke-log directory after log analysis passes.
 
 If the board IP may have changed:
 
