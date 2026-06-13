@@ -65,7 +65,30 @@ powershell -ExecutionPolicy Bypass -File .\tools\find_30tai_board.ps1 -Subnet 19
 
 Do not run the real-board acceptance script until SSH is reachable.
 
-## 3. Real-Board Automated Acceptance
+## 3. Board Readiness Report
+
+Before full closed-loop testing, run the combined readiness report:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\run_board_readiness_report.ps1 -SshKey .\.ssh_board\id_ed25519_30tai
+```
+
+The report combines:
+
+- SSH reachability,
+- CAN bus health,
+- controller-only synthetic target behavior,
+- real SDI/video input diagnosis.
+
+The vehicle is ready for lifted-wheel target-visible tests only when the report says:
+
+```text
+Overall ready for full closed-loop test: YES
+```
+
+If the report says `NO`, follow its interpretation section before sending CAN motion commands.
+
+## 4. Real-Board Automated Acceptance
 
 Run:
 
@@ -126,7 +149,7 @@ Current observed board evidence:
 - `integrated_vtc` runs without `ImageMake Timeout`, but it does not provide a real target frame, so it cannot prove final target following.
 - `/dev/video0` is not a normal V4L2 capture device on this board image; the PLin demo depends on the board-specific PL camera path.
 
-## 4. Controller-Only Board Test
+## 5. Controller-Only Board Test
 
 Before sending any CAN frame, check the CAN bus:
 
@@ -185,11 +208,11 @@ Only use `-SendCan` when:
 
 If `can0` is `ERROR-PASSIVE` or bus errors increase, fix CAN wiring, termination, bitrate, and controller mode before sending motion commands.
 
-## 5. Safe Motion Test
+## 6. Safe Motion Test
 
 The first real motion test must be done with wheels lifted.
 
-### 5.1 Gimbal Direction Test
+### 6.1 Gimbal Direction Test
 
 Place the target in different image regions and observe the gimbal command.
 
@@ -206,7 +229,7 @@ Pass condition:
 - The gimbal does not oscillate violently near the center.
 - `[AIM FOLLOW]` logs show nonzero `ex` or `ey` when the target is off center.
 
-### 5.2 Chassis Direction Test
+### 6.2 Chassis Direction Test
 
 Keep the wheels lifted. Use a known-width target and move it to known distances.
 
@@ -229,7 +252,7 @@ If only one motor moves or the vehicle rotates in place:
 - Check `AIM_FOLLOW_MOTOR2_FORWARD_SIGN`.
 - Check the chassis CAN wiring and motor controller mode.
 
-## 6. Ground Test
+## 7. Ground Test
 
 Only run this after the lifted-wheel test passes.
 
@@ -254,7 +277,7 @@ Ground-test matrix:
 
 Acceptance requires all five tests to pass.
 
-## 7. Evidence Archive
+## 8. Evidence Archive
 
 After a successful run, keep the fetched smoke-log directory.
 
@@ -271,12 +294,13 @@ Recommended final evidence package:
 
 - Latest Git commit hash of `jichuangsai30tai_aim_follow`.
 - Integrated PLin project commit or archive name.
+- Latest `readiness_report.md`.
 - `acceptance_report.md`.
 - Synthetic controller log with `[SYNTH SUMMARY] ... result=PASS`.
 - At least one saved HDMI frame showing the detection box and distance text.
 - Filled tuning log copied from `docs/TUNING_LOG_TEMPLATE.md`.
 
-## 8. Completion Criteria
+## 9. Completion Criteria
 
 The project can be treated as accepted only when:
 

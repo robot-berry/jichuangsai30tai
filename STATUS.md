@@ -106,6 +106,12 @@ Board-specific notes from the current 30TAI:
   - rx error counter: `0`
   - tx packets: `0`, rx packets: `2`
 - This indicates that chassis/gimbal motion commands should not be sent until wiring, termination, controller mode, and bus ACK behavior are corrected.
+- `tools/run_board_readiness_report.ps1` was added to combine SSH, CAN, synthetic-controller, and video-input gates into one `readiness_report.md`.
+- Latest full readiness report result was `NO`:
+  - SSH connection: PASS
+  - CAN bus healthy: FAIL
+  - controller synthetic behavior: PASS
+  - real video input: FAIL
 
 ## Next required board steps
 
@@ -132,6 +138,12 @@ To check whether CAN is safe for lifted-wheel motion tests:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\tools\diagnose_30tai_can_bus.ps1 -SshKey .\.ssh_board\id_ed25519_30tai
+```
+
+To generate the combined readiness report:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\run_board_readiness_report.ps1 -SshKey .\.ssh_board\id_ed25519_30tai
 ```
 
 The lower-level manual sequence remains:

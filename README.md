@@ -38,6 +38,7 @@ tools/
   run_board_acceptance.ps1
   diagnose_30tai_can_bus.ps1
   diagnose_30tai_video_input.ps1
+  run_board_readiness_report.ps1
   run_board_synthetic_control_test.ps1
   write_acceptance_report.ps1
   analyze_smoke_logs.ps1
@@ -154,6 +155,14 @@ powershell -ExecutionPolicy Bypass -File .\tools\diagnose_30tai_can_bus.ps1 -Ssh
 ```
 
 Do not send motion commands while `can0` is `ERROR-PASSIVE` or `BUS-OFF`.
+
+To run the current board-readiness gates together and generate `readiness_report.md`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\run_board_readiness_report.ps1 -SshKey .\.ssh_board\id_ed25519_30tai
+```
+
+The report combines SSH, CAN, synthetic-controller, and real-video-input evidence.
 
 For the final lifted-wheel and ground tests, follow `docs/BOARD_ACCEPTANCE_RUNBOOK.md`.
 Use `docs/TUNING_LOG_TEMPLATE.md` to record final parameters and physical-test evidence.
