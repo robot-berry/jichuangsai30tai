@@ -103,6 +103,11 @@ Verified on 30TAI:
   - `AIM_FOLLOW_CAN_DRYRUN=1` was active
   - repeated `ImageMake Timeout` and `accept 0 data`
   - no `[YOLO DEBUG]`, `[AIM FOLLOW]`, or `[DISTANCE DEBUG]`, because no valid external frame reached the model pipeline
+- `tools/run_sdi_input_triage.ps1` was added as the current fastest camera-path judgment command. Latest triage result:
+  - VTC/internal frame path: PASS (`ImageMake Timeout=0`, `accept 0 data=0`)
+  - real SDI frame path: FAIL (`ImageMake Timeout=10`, `accept 0 data=5`)
+  - real target algorithm logs: `SKIPPED_NO_FRAME`
+  - conclusion: application/model/HDMI/dry-run path starts, but physical `SDI_IN_0` has no valid frame input
 
 Current remaining blocker:
 
@@ -204,6 +209,12 @@ To verify the same application path with the internal VTC source instead of the 
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\tools\run_board_vision_algorithm_test.ps1 -ProjectDir <PLinProjectDir> -SshKey .\.ssh_board\id_ed25519_30tai -UseVtc -SkipUpload -SkipBuild
+```
+
+To run the fastest VTC-vs-real-SDI judgment:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\run_sdi_input_triage.ps1 -ProjectDir <PLinProjectDir> -SshKey .\.ssh_board\id_ed25519_30tai -SkipUpload -SkipBuild
 ```
 
 To check whether CAN is safe for lifted-wheel motion tests:

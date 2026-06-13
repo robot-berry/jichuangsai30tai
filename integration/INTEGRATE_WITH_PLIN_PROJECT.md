@@ -218,3 +218,73 @@ Minimum evidence:
 - `[AIM FOLLOW]` appears when a bicycle target is visible
 - `[DISTANCE DEBUG]` appears for distance display
 - CAN `0x201` chassis frames and `0x38A` gimbal frames appear in `candump.log`
+
+## 9. No-CAN HDMI validation stage
+
+Before connecting the physical car chassis and gimbal, run the integrated PLin
+application with CAN writes disabled:
+
+```bash
+AIM_FOLLOW_CAN_DRYRUN=1 ./build/ZG/sdicamera+yolov5+hdmi configs/ZG/sdicamera+yolov5+hdmi_vision_sdi.yaml
+```
+
+In this mode:
+
+- the YOLO, distance, target-selection, gimbal-tracking, and chassis-following
+  algorithms still run
+- `send_chassis_can_mode()` and `send_gimbal_can_mode()` still build their
+  command payloads
+- `send_can_frame()` prints `DRYRUN id=0x...` instead of writing to `can0`
+- `can0` does not need to be connected to the chassis controller
+
+The integrated HDMI view should show an on-screen control panel containing:
+
+```text
+Target:LOCK/LOST  Distance:<m>  Error:<m>
+Gimbal tracking: pitch=<cmd> yaw=<cmd>  ex=<norm> ey=<norm>
+Chassis tracking: motor1=<rpm> motor2=<rpm>
+CAN output: DRYRUN(no write)
+```
+
+Use this panel to verify the idea before real CAN hardware is connected:
+
+- move the target left/right: `yaw` should change
+- move the target up/down: `pitch` should change
+- move the target farther than the target distance: motor RPM should become
+  forward
+- move the target closer than the target distance: motor RPM should become
+  backward or return toward zero depending on the deadband
+- remove the target: the panel should show `Target:LOST`, and chassis RPM
+  should return to zero after the lost-target hold frames
+
+The same stage can be tested from the focused repository:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\run_board_vision_algorithm_test.ps1 -ProjectDir <PLinProjectDir> -SshKey .\.ssh_board\id_ed25519_30tai
+```
+
+For a camera-path control test that does not require a physical SDI signal:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\run_board_vision_algorithm_test.ps1 -ProjectDir <PLinProjectDir> -SshKey .\.ssh_board\id_ed25519_30tai -UseVtc
+```
+
+`-UseVtc` proves that the application, model path, HDMI pipeline, and CAN
+dry-run isolation can start. It does not prove target tracking, because the
+internal VTC pattern does not contain the bicycle target.
+
+## 10. Current SDI input finding
+
+On the current 30TAI board, VTC input starts without frame-input errors, but
+the real `SDI_IN_0` path repeatedly reports:
+
+```text
+ZG330 ImageMake Timeout after 1000 ms, data_in_num=0
+Image size is 640 * 352, but accept 0 data
+```
+
+This means the application and downstream processing path can start, but no
+valid external frame is reaching ImageMake from `SDI_IN_0`. Fixing the physical
+camera/SDI/bitstream input path is required before real target-driven
+`[AIM FOLLOW]`, `[DISTANCE DEBUG]`, and HDMI control-panel values can be
+verified from the live camera.
