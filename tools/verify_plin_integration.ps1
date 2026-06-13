@@ -54,6 +54,7 @@ Add-Check "Main defines AIM_FOLLOW enable switch" ($mainText.Contains("AIM_FOLLO
 Add-Check "Main defines target distance parameter" ($mainText.Contains("AIM_FOLLOW_TARGET_DISTANCE_M")) $MainPath
 Add-Check "Main creates TargetSelector" ($mainText.Contains("aim_follow::TargetSelector")) $MainPath
 Add-Check "Main creates AimFollowController" ($mainText.Contains("aim_follow::AimFollowController")) $MainPath
+Add-Check "Main uses MonocularDistanceEstimator" ($mainText.Contains("aim_follow::MonocularDistanceEstimator")) $MainPath
 Add-Check "Main maps detection boxes before target selection" ($mainText.Contains("target_candidates") -and $mainText.Contains("map_box_to_display")) $MainPath
 Add-Check "Main logs aim/follow state" ($mainText.Contains("[AIM FOLLOW]")) $MainPath
 Add-Check "Main logs distance debug state" ($mainText.Contains("[DISTANCE DEBUG]")) $MainPath
