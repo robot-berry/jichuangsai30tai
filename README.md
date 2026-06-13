@@ -10,6 +10,8 @@ It is not a copy of the original PLin + SingleNet + HDMI demo project. Instead, 
 - target-lost safety behavior
 - 30TAI build, smoke-test, and log-analysis workflow
 
+Current completion and board-validation status is tracked in `STATUS.md`.
+
 ## Repository layout
 
 ```text
@@ -33,6 +35,8 @@ tools/
 
 integration/
   INTEGRATE_WITH_PLIN_PROJECT.md
+
+STATUS.md
 ```
 
 ## Local algorithm test
