@@ -32,6 +32,7 @@ It is not a full copy of the original PLin + SingleNet + HDMI demo application. 
   - target continuity selection
 - Integration documentation is available under `integration/`.
 - Board-side helper scripts are available under `tools/`.
+- Final board acceptance runbook is available under `docs/BOARD_ACCEPTANCE_RUNBOOK.md`.
 - One-command acceptance preflight is available:
 
 ```powershell

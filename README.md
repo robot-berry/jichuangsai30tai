@@ -44,6 +44,7 @@ integration/
 
 docs/
   ALGORITHM_DESIGN.md
+  BOARD_ACCEPTANCE_RUNBOOK.md
 
 STATUS.md
 ```
@@ -124,6 +125,8 @@ powershell -ExecutionPolicy Bypass -File .\tools\run_board_acceptance.ps1 -Proje
 ```
 
 The real-board wrapper writes `acceptance_report.md` into the fetched smoke-log directory after log analysis passes.
+
+For the final lifted-wheel and ground tests, follow `docs/BOARD_ACCEPTANCE_RUNBOOK.md`.
 
 If the board IP may have changed:
 
