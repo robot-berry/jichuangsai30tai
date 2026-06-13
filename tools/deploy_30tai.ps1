@@ -45,16 +45,37 @@ function Run-Step {
     }
 }
 
+function Test-TcpPortFast {
+    param(
+        [string]$HostName,
+        [int]$Port,
+        [int]$TimeoutMs
+    )
+
+    $client = New-Object System.Net.Sockets.TcpClient
+    try {
+        $task = $client.ConnectAsync($HostName, $Port)
+        if (-not $task.Wait($TimeoutMs)) {
+            return $false
+        }
+        return $client.Connected
+    } catch {
+        return $false
+    } finally {
+        $client.Close()
+    }
+}
+
 Write-Host "ProjectDir: $ProjectDir"
 Write-Host "Board:      $SshTarget"
 Write-Host "RemoteDir:  $RemoteDir"
 Write-Host "RemoteLog:  $RemoteSmokeLogDir"
 Write-Host "LocalLog:   $LocalLogDir"
 
-Run-Step "Check SSH port" "Test-NetConnection -ComputerName '$BoardIp' -Port 22 -InformationLevel Quiet"
+Run-Step "Check SSH port" "powershell -NoProfile -Command `"`$client = New-Object System.Net.Sockets.TcpClient; `$task = `$client.ConnectAsync('$BoardIp',22); if (`$task.Wait(3000)) { `$client.Connected } else { `$false }; `$client.Close()`""
 
 if (-not $DryRun) {
-    $canConnect = Test-NetConnection -ComputerName $BoardIp -Port 22 -InformationLevel Quiet
+    $canConnect = Test-TcpPortFast -HostName $BoardIp -Port 22 -TimeoutMs 3000
     if (-not $canConnect) {
         throw "Cannot connect to $BoardIp:22. Check board power, network cable, IP address, and PC network segment."
     }

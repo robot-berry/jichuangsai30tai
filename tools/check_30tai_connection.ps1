@@ -1,7 +1,8 @@
 param(
     [string]$BoardIp = "192.168.125.171",
     [string]$User = "root",
-    [int]$SshPort = 22
+    [int]$SshPort = 22,
+    [int]$TcpTimeoutMs = 3000
 )
 
 $ErrorActionPreference = "Continue"
@@ -11,6 +12,27 @@ Write-Host "==== 30TAI connection preflight ====" -ForegroundColor Cyan
 Write-Host "Board: $SshTarget"
 Write-Host "Port:  $SshPort"
 Write-Host ""
+
+function Test-TcpPortFast {
+    param(
+        [string]$HostName,
+        [int]$Port,
+        [int]$TimeoutMs
+    )
+
+    $client = New-Object System.Net.Sockets.TcpClient
+    try {
+        $task = $client.ConnectAsync($HostName, $Port)
+        if (-not $task.Wait($TimeoutMs)) {
+            return $false
+        }
+        return $client.Connected
+    } catch {
+        return $false
+    } finally {
+        $client.Close()
+    }
+}
 
 Write-Host "[1/6] Local IPv4 addresses" -ForegroundColor Cyan
 Get-NetIPAddress -AddressFamily IPv4 |
@@ -32,7 +54,7 @@ Write-Host "[4/6] Ping test" -ForegroundColor Cyan
 ping -n 2 -w 1000 $BoardIp
 
 Write-Host "[5/6] TCP port test" -ForegroundColor Cyan
-$tcpOk = Test-NetConnection -ComputerName $BoardIp -Port $SshPort -InformationLevel Quiet
+$tcpOk = Test-TcpPortFast -HostName $BoardIp -Port $SshPort -TimeoutMs $TcpTimeoutMs
 Write-Host "TCP $BoardIp`:$SshPort reachable: $tcpOk"
 
 Write-Host "[6/6] SSH batch test" -ForegroundColor Cyan
