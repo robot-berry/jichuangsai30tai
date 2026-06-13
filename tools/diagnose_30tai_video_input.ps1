@@ -97,9 +97,13 @@ run_case original_plin "`$ORIGINAL_DIR" "sdicamera+yolov5+hdmi" "configs/ZG/sdic
 echo "after original call" >> "`$PROGRESS"
 
 DEPLOY="`$REMOTE_DIR/build/ZG/deploy/ZG"
+DIRECT="`$REMOTE_DIR"
 echo "deploy=`$DEPLOY" >> "`$PROGRESS"
+echo "direct=`$DIRECT" >> "`$PROGRESS"
 run_case integrated_board_model "`$DEPLOY" "sdicamera+yolov5+hdmi" "configs/ZG/sdicamera+yolov5+hdmi_board_model.yaml"
 echo "after integrated call" >> "`$PROGRESS"
+run_case integrated_direct "`$DIRECT" "build/ZG/sdicamera+yolov5+hdmi" "configs/ZG/sdicamera+yolov5+hdmi_board_model_direct.yaml"
+echo "after integrated direct call" >> "`$PROGRESS"
 
 if [ -f "`$DEPLOY/configs/ZG/sdicamera+yolov5+hdmi_board_model.yaml" ]; then
     cp "`$DEPLOY/configs/ZG/sdicamera+yolov5+hdmi_board_model.yaml" "`$DEPLOY/configs/ZG/sdicamera+yolov5+hdmi_board_model_vtc.yaml"
@@ -113,7 +117,7 @@ echo "after vtc call" >> "`$PROGRESS"
     echo
     echo "| Case | All actors | ImageMake timeout | accept 0 data | AIM config | AIM follow | Distance debug | Abort/runtime error |"
     echo "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"
-    for case_name in original_plin integrated_board_model integrated_vtc; do
+    for case_name in original_plin integrated_board_model integrated_direct integrated_vtc; do
         log="`$REMOTE_LOG_DIR/`$case_name.log"
         if [ ! -f "`$log" ]; then
             echo "| `$case_name | 0 | 0 | 0 | 0 | 0 | 0 | 0 |"

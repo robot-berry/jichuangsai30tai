@@ -95,7 +95,8 @@ Board-specific notes from the current 30TAI:
 - `tools/diagnose_30tai_video_input.ps1` compares the unmodified PLin demo, the integrated board-model config, and a `camera.vtc: true` test-pattern config.
 - Latest video-input diagnosis showed:
   - `original_plin`: actors start, then `ImageMake Timeout` / `accept 0 data`
-  - `integrated_board_model`: actors start, `[AIM FOLLOW CONFIG]` appears, then the same `ImageMake Timeout` / `accept 0 data`
+  - `integrated_board_model`: deploy-style executable path was not present on the current board image
+  - `integrated_direct`: actors start, `[AIM FOLLOW CONFIG]` appears, then the same `ImageMake Timeout` / `accept 0 data`
   - `integrated_vtc`: actors start and no `ImageMake Timeout` appears during the short test, but no real target detections are produced
 - This points to real SDI/camera input state as the current blocker before closed-loop target following can be verified.
 - `tools/run_board_synthetic_control_test.ps1` was added for controller-only board validation when the camera path is unavailable.
@@ -106,20 +107,20 @@ Board-specific notes from the current 30TAI:
   - right/up synthetic target -> yaw/pitch command changes
   - lost synthetic target -> chassis stop
   - generated `0x201` and `0x38A` CAN payload bytes
-- The synthetic test did not send CAN frames by default. `can0` was observed as `ERROR-PASSIVE`, so real CAN sending should wait until the bus is `ERROR-ACTIVE` with wheels lifted.
+- The synthetic test did not send CAN frames by default.
 - `tools/diagnose_30tai_can_bus.ps1` was added for repeatable CAN health checks.
 - Latest CAN diagnosis showed:
-  - before state: `ERROR-PASSIVE`
-  - after state: `ERROR-PASSIVE`
+  - before state: `ERROR-ACTIVE`
+  - after state: `ERROR-ACTIVE`
   - bitrate: `250000`
-  - tx error counter: `128`
+  - tx error counter: `0`
   - rx error counter: `0`
-  - tx packets: `0`, rx packets: `2`
-- This indicates that chassis/gimbal motion commands should not be sent until wiring, termination, controller mode, and bus ACK behavior are corrected.
+  - tx packets: `2`, rx packets: `6`
+- This indicates that the CAN controller is currently healthy enough for lifted-wheel neutral-frame or carefully limited motion tests.
 - `tools/run_board_readiness_report.ps1` was added to combine SSH, CAN, synthetic-controller, and video-input gates into one `readiness_report.md`.
-- Latest full readiness report result was `NO`:
+- Latest full readiness report result was still `NO` until the camera input path is fixed:
   - SSH connection: PASS
-  - CAN bus healthy: FAIL
+  - CAN bus healthy: PASS in the latest standalone CAN diagnosis
   - controller synthetic behavior: PASS
   - real video input: FAIL
 
