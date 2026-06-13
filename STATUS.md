@@ -51,6 +51,10 @@ powershell -ExecutionPolicy Bypass -File .\tools\run_board_vision_algorithm_test
   - gimbal tracking pitch/yaw and normalized image error
   - chassis tracking motor1/motor2 RPM command
   - CAN output state: `DRYRUN(no write)` or `ACTIVE(write can0)`
+- The main-program HDMI/dry-run integration patch checklist is recorded in
+  `integration/PLIN_MAIN_HDMI_DRYRUN_PATCH.md`, so the focused repository can
+  reproduce the PLin `src/sdicamera+yolov5+hdmi.cpp` changes without copying
+  the whole original demo application.
 - Final board acceptance runbook is available under `docs/BOARD_ACCEPTANCE_RUNBOOK.md`.
 - Real-car tuning log template is available under `docs/TUNING_LOG_TEMPLATE.md`.
 - One-command acceptance preflight is available:

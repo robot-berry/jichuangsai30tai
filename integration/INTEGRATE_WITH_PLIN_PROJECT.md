@@ -221,6 +221,12 @@ Minimum evidence:
 
 ## 9. No-CAN HDMI validation stage
 
+The concrete main-program patch checklist is recorded in:
+
+```text
+integration/PLIN_MAIN_HDMI_DRYRUN_PATCH.md
+```
+
 Before connecting the physical car chassis and gimbal, run the integrated PLin
 application with CAN writes disabled:
 
