@@ -32,6 +32,12 @@ It is not a full copy of the original PLin + SingleNet + HDMI demo application. 
   - target continuity selection
 - Integration documentation is available under `integration/`.
 - Board-side helper scripts are available under `tools/`.
+- One-command acceptance preflight is available:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\run_acceptance_preflight.ps1 -ProjectDir <PLinProjectDir>
+```
+
 - Sync workflow is available:
 
 ```powershell

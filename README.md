@@ -34,6 +34,7 @@ tools/
   deploy_30tai.ps1
   sync_to_plin_project.ps1
   verify_plin_integration.ps1
+  run_acceptance_preflight.ps1
   analyze_smoke_logs.ps1
 
 integration/
@@ -92,6 +93,18 @@ aim_follow_control/ACCEPTANCE_CHECKLIST.md
 ```
 
 ## Board workflow
+
+Before connecting the board, run the complete preflight against the integrated PLin project:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\run_acceptance_preflight.ps1 -ProjectDir <PLinProjectDir>
+```
+
+After the board is powered and SSH is reachable, include the board connection check:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\run_acceptance_preflight.ps1 -ProjectDir <PLinProjectDir> -CheckBoard
+```
 
 After this module has been integrated into the PLin application project, run:
 
