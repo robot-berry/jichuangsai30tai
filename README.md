@@ -16,6 +16,12 @@ Current completion and board-validation status is tracked in `STATUS.md`.
 
 Algorithm selection, control logic, parameter tuning, and 30TAI deployment constraints are described in `docs/ALGORITHM_DESIGN.md`.
 
+For rebuilding the same environment on another computer, see the Chinese setup guide:
+
+```text
+docs/SETUP_ANOTHER_PC_CN.md
+```
+
 ## Repository layout
 
 ```text
@@ -37,10 +43,17 @@ tools/
   deploy_30tai.ps1
   sync_to_plin_project.ps1
   verify_plin_integration.ps1
+  run_board_vision_algorithm_test.ps1
+  run_hdmi_synthetic_demo.ps1
+  analyze_vision_algorithm_logs.ps1
+  run_sdi_input_triage.ps1
   run_acceptance_preflight.ps1
   run_board_acceptance.ps1
   diagnose_30tai_can_bus.ps1
   diagnose_30tai_video_input.ps1
+  diagnose_30tai_camera_path.ps1
+  probe_30tai_sdi_modes.ps1
+  dump_30tai_sdi_registers.ps1
   run_board_readiness_report.ps1
   run_board_synthetic_control_test.ps1
   write_acceptance_report.ps1
@@ -48,10 +61,12 @@ tools/
 
 integration/
   INTEGRATE_WITH_PLIN_PROJECT.md
+  PLIN_MAIN_HDMI_DRYRUN_PATCH.md
 
 docs/
   ALGORITHM_DESIGN.md
   BOARD_ACCEPTANCE_RUNBOOK.md
+  SETUP_ANOTHER_PC_CN.md
   TUNING_LOG_TEMPLATE.md
 
 STATUS.md
@@ -151,6 +166,14 @@ powershell -ExecutionPolicy Bypass -File .\tools\run_board_synthetic_control_tes
 
 This builds `aim_follow_control` on the board and verifies forward/backward distance following, yaw/pitch aiming, lost-target stop behavior, and the generated `0x201` / `0x38A` CAN payload bytes. It does not send CAN by default. Use `-SendCan -ConfigureCan` only with the wheels lifted and the CAN bus confirmed healthy.
 The synthetic test uses the same monocular distance equation as the integrated app: `distance = target_real_width_m * focal_length_px / box_width_px`.
+
+For the fastest HDMI-only demo before the real camera and CAN hardware are ready, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\run_hdmi_synthetic_demo.ps1 -ProjectDir <PLinProjectDir> -SshKey .\.ssh_board\id_ed25519_30tai
+```
+
+This enables VTC input, a synthetic bicycle target, and CAN dry-run. The HDMI panel should show target state, filtered distance, gimbal tracking, chassis tracking, and CAN output state without writing to `can0`.
 
 Check CAN bus health before any command that may move hardware:
 
