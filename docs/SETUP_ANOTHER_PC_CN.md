@@ -18,6 +18,7 @@ https://github.com/robot-berry/jichuangsai30tai.git
 | 本地单元测试 | `aim_follow_control/test/` | 验证距离估计、目标丢失保护、远近跟随、上下左右瞄准响应 |
 | PLin 工程集成说明 | `integration/` | 说明如何把算法模块接入 YOLO 后处理、HDMI 显示和 CAN 输出链路 |
 | DetPost 算子学习参考模型 | `examples/detpost_reference_model/` | 保存 ZG/30TAI 的 `customop::DetPostZG` 模型、BY 对照模型和对应 YAML |
+| modelzoo_utils 工具包 | `third_party/modelzoo_utils/` | 保存 30TAI/FPAI 示例常用的 C++/Python 工具封装，方便学习 API 和 pipeline |
 | 板端部署与测试脚本 | `tools/` | 检查 SSH、同步工程、验证集成、运行 HDMI dry-run、诊断 SDI 输入和 CAN 总线 |
 | 算法与验收文档 | `docs/` | 算法设计、板端验收步骤、调参记录模板、迁移说明 |
 | 当前状态记录 | `STATUS.md` | 记录已经完成的内容、30TAI 实测结果、当前剩余问题 |
@@ -40,6 +41,14 @@ DetPost 算子学习可以先看：
 ```text
 examples/detpost_reference_model/README.md
 docs/DETPOST_OPERATOR_LEARNING_NOTES_CN.md
+```
+
+modelzoo_utils 工具包可以先看：
+
+```text
+third_party/modelzoo_utils/README_UPLOAD_CN.md
+third_party/modelzoo_utils/C++_API_reference.md
+third_party/modelzoo_utils/include/
 ```
 
 ## 2. GitHub 上没有也不建议上传的内容

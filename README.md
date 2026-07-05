@@ -47,6 +47,13 @@ examples/
     imodel/ZG/yolov5s_plin_352x640_ZG.raw
     names/coco.names
 
+third_party/
+  modelzoo_utils/
+    README_UPLOAD_CN.md
+    include/
+    pyrtutils/
+    src/
+
 tools/
   run_local_aim_follow_checks.ps1
   check_deploy_dry_run.ps1
@@ -87,6 +94,20 @@ STATUS.md
 
 ## Local algorithm test
 
+Run from this repository root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\run_local_aim_follow_checks.ps1
+```
+
+Expected evidence:
+
+```text
+aim_follow_controller_test passed
+Smoke log analysis passed.
+Local aim/follow checks passed.
+```
+
 ## DetPost reference model
 
 The repository includes a lightweight learning copy of the PLin DetPost reference model:
@@ -112,19 +133,15 @@ compile_target: @fpgat
 
 See `docs/DETPOST_OPERATOR_LEARNING_NOTES_CN.md` for the Chinese learning notes. The current board may still need a matching DetPostZG bitstream; otherwise the runtime can report `No DetPost HardWare`.
 
-Run from this repository root:
+## modelzoo_utils learning package
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\tools\run_local_aim_follow_checks.ps1
-```
-
-Expected evidence:
+The repository also includes a lightweight copy of the 30TAI/FPAI `modelzoo_utils` helper package:
 
 ```text
-aim_follow_controller_test passed
-Smoke log analysis passed.
-Local aim/follow checks passed.
+third_party/modelzoo_utils/
 ```
+
+It is intended for learning the example-project utility layer: C++ helper headers, `PicPre`, `NetInfo`, FPAI device helpers, pipeline actors, RTSP support, and Python runtime utilities. It does not replace the full 30TAI SDK or board-side dependency package.
 
 ## Integrating into the current PLin project
 
