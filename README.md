@@ -10,6 +10,7 @@ It is not a copy of the original PLin + SingleNet + HDMI demo project. Instead, 
 - lightweight target continuity selection
 - target-lost safety behavior
 - reusable distance-estimation and filtering module
+- DetPost/DetPostZG reference model files for operator learning
 - 30TAI build, smoke-test, and log-analysis workflow
 
 Current completion and board-validation status is tracked in `STATUS.md`.
@@ -34,6 +35,17 @@ aim_follow_control/
   README.md
   BOARD_INTEGRATION.md
   ACCEPTANCE_CHECKLIST.md
+
+examples/
+  detpost_reference_model/
+    README.md
+    configs/BY/sdicamera+yolov5+hdmi.yaml
+    configs/ZG/sdicamera+yolov5+hdmi.yaml
+    imodel/BY/yolov5s_plin_BY.json
+    imodel/BY/yolov5s_plin_BY.raw
+    imodel/ZG/yolov5s_plin_352x640_ZG.json
+    imodel/ZG/yolov5s_plin_352x640_ZG.raw
+    names/coco.names
 
 tools/
   run_local_aim_follow_checks.ps1
@@ -66,6 +78,7 @@ integration/
 docs/
   ALGORITHM_DESIGN.md
   BOARD_ACCEPTANCE_RUNBOOK.md
+  DETPOST_OPERATOR_LEARNING_NOTES_CN.md
   SETUP_ANOTHER_PC_CN.md
   TUNING_LOG_TEMPLATE.md
 
@@ -73,6 +86,31 @@ STATUS.md
 ```
 
 ## Local algorithm test
+
+## DetPost reference model
+
+The repository includes a lightweight learning copy of the PLin DetPost reference model:
+
+```text
+examples/detpost_reference_model/
+```
+
+For the current 30TAI/ZG platform, the key files are:
+
+```text
+examples/detpost_reference_model/configs/ZG/sdicamera+yolov5+hdmi.yaml
+examples/detpost_reference_model/imodel/ZG/yolov5s_plin_352x640_ZG.json
+examples/detpost_reference_model/imodel/ZG/yolov5s_plin_352x640_ZG.raw
+```
+
+The ZG model contains:
+
+```text
+customop::DetPostZG
+compile_target: @fpgat
+```
+
+See `docs/DETPOST_OPERATOR_LEARNING_NOTES_CN.md` for the Chinese learning notes. The current board may still need a matching DetPostZG bitstream; otherwise the runtime can report `No DetPost HardWare`.
 
 Run from this repository root:
 

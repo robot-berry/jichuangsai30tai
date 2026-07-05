@@ -17,6 +17,7 @@ https://github.com/robot-berry/jichuangsai30tai.git
 | 距离跟随与自动瞄准算法模块 | `aim_follow_control/` | 单目距离估计、距离低通滤波、目标连续选择、云台瞄准控制、小车定距跟随控制 |
 | 本地单元测试 | `aim_follow_control/test/` | 验证距离估计、目标丢失保护、远近跟随、上下左右瞄准响应 |
 | PLin 工程集成说明 | `integration/` | 说明如何把算法模块接入 YOLO 后处理、HDMI 显示和 CAN 输出链路 |
+| DetPost 算子学习参考模型 | `examples/detpost_reference_model/` | 保存 ZG/30TAI 的 `customop::DetPostZG` 模型、BY 对照模型和对应 YAML |
 | 板端部署与测试脚本 | `tools/` | 检查 SSH、同步工程、验证集成、运行 HDMI dry-run、诊断 SDI 输入和 CAN 总线 |
 | 算法与验收文档 | `docs/` | 算法设计、板端验收步骤、调参记录模板、迁移说明 |
 | 当前状态记录 | `STATUS.md` | 记录已经完成的内容、30TAI 实测结果、当前剩余问题 |
@@ -32,6 +33,13 @@ tools/run_board_synthetic_control_test.ps1
 tools/diagnose_30tai_can_bus.ps1
 tools/verify_plin_integration.ps1
 tools/sync_to_plin_project.ps1
+```
+
+DetPost 算子学习可以先看：
+
+```text
+examples/detpost_reference_model/README.md
+docs/DETPOST_OPERATOR_LEARNING_NOTES_CN.md
 ```
 
 ## 2. GitHub 上没有也不建议上传的内容
