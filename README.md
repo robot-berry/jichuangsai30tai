@@ -11,6 +11,8 @@ It is not a copy of the original PLin + SingleNet + HDMI demo project. Instead, 
 - target-lost safety behavior
 - reusable distance-estimation and filtering module
 - DetPost/DetPostZG reference model files for operator learning
+- complete integrated PLin example project for rebuilding on another computer
+- full compressed 30TAI/FPAI `deps` package for SDK headers and third-party libraries
 - 30TAI build, smoke-test, and log-analysis workflow
 
 Current completion and board-validation status is tracked in `STATUS.md`.
@@ -37,6 +39,14 @@ aim_follow_control/
   ACCEPTANCE_CHECKLIST.md
 
 examples/
+  plin_yolov5_hdmi_integrated/
+    CMakeLists.txt
+    src/
+    configs/
+    imodel/
+    names/
+    aim_follow_control/
+    tools/
   detpost_reference_model/
     README.md
     configs/BY/sdicamera+yolov5+hdmi.yaml
@@ -54,7 +64,11 @@ third_party/
     pyrtutils/
     src/
 
+sdk/
+  fpai_demo_package_26010502_deps_parts/
+
 tools/
+  install_full_sdk_deps.ps1
   run_local_aim_follow_checks.ps1
   check_deploy_dry_run.ps1
   check_30tai_connection.ps1
@@ -85,6 +99,7 @@ integration/
 docs/
   ALGORITHM_DESIGN.md
   BOARD_ACCEPTANCE_RUNBOOK.md
+  BUILD_FULL_PROJECT_ON_ANOTHER_PC_CN.md
   DETPOST_OPERATOR_LEARNING_NOTES_CN.md
   SETUP_ANOTHER_PC_CN.md
   TUNING_LOG_TEMPLATE.md
@@ -107,6 +122,24 @@ aim_follow_controller_test passed
 Smoke log analysis passed.
 Local aim/follow checks passed.
 ```
+
+## Full Rebuild On Another Computer
+
+For a complete rebuild, use:
+
+```text
+examples/plin_yolov5_hdmi_integrated/
+sdk/fpai_demo_package_26010502_deps.zip
+tools/install_full_sdk_deps.ps1
+```
+
+The SDK/deps archive is stored as split files under 100MB each. After cloning, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\install_full_sdk_deps.ps1
+```
+
+See `docs/BUILD_FULL_PROJECT_ON_ANOTHER_PC_CN.md` for the full Chinese rebuild guide.
 
 ## DetPost reference model
 

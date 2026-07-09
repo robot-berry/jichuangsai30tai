@@ -18,6 +18,8 @@ https://github.com/robot-berry/jichuangsai30tai.git
 | 本地单元测试 | `aim_follow_control/test/` | 验证距离估计、目标丢失保护、远近跟随、上下左右瞄准响应 |
 | PLin 工程集成说明 | `integration/` | 说明如何把算法模块接入 YOLO 后处理、HDMI 显示和 CAN 输出链路 |
 | DetPost 算子学习参考模型 | `examples/detpost_reference_model/` | 保存 ZG/30TAI 的 `customop::DetPostZG` 模型、BY 对照模型和对应 YAML |
+| 当前增强版 PLin 示例工程 | `examples/plin_yolov5_hdmi_integrated/` | 保存可重新编译的当前工程源码、配置、模型和工具脚本 |
+| 完整 SDK/deps 压缩包分片 | `sdk/fpai_demo_package_26010502_deps_parts/` | 保存 `modelzoo_utils`、`thirdparty/include`、`thirdparty/a`、`thirdparty/lib` 等编译依赖，脚本会自动合并解压 |
 | modelzoo_utils 工具包 | `third_party/modelzoo_utils/` | 保存 30TAI/FPAI 示例常用的 C++/Python 工具封装，方便学习 API 和 pipeline |
 | 板端部署与测试脚本 | `tools/` | 检查 SSH、同步工程、验证集成、运行 HDMI dry-run、诊断 SDI 输入和 CAN 总线 |
 | 算法与验收文档 | `docs/` | 算法设计、板端验收步骤、调参记录模板、迁移说明 |
@@ -267,3 +269,29 @@ powershell -ExecutionPolicy Bypass -File .\tools\run_hdmi_synthetic_demo.ps1 -Pr
 4. 30TAI 板端可以在不连接小车和云台的情况下显示控制数据。
 
 真实摄像头、真实 CAN、小车移动和云台运动属于后续硬件闭环实测，需要在 SDI 输入和 CAN 总线都确认正常后再进行。
+
+## 12. 完整重新编译
+
+如果另一台电脑希望不再依赖本机已有的 `fpai_demo_package_26010502/deps`，直接拉取最新仓库：
+
+```powershell
+git pull origin main
+```
+
+然后解压完整 SDK/deps 到 PLin CMake 默认查找位置：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\install_full_sdk_deps.ps1
+```
+
+当前增强版 PLin 示例工程在：
+
+```text
+examples/plin_yolov5_hdmi_integrated/
+```
+
+更详细步骤见：
+
+```text
+docs/BUILD_FULL_PROJECT_ON_ANOTHER_PC_CN.md
+```
