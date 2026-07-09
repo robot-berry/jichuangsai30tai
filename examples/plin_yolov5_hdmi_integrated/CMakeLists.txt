@@ -59,6 +59,7 @@ endif()
 
 add_compile_options("$<$<C_COMPILER_ID:MSVC>:/utf-8>")
 add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
+add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/Zc:__cplusplus>")
 #/Zi 是 MSVC 编译器的一个选项，用于生成调试信息
 add_compile_options("$<$<C_COMPILER_ID:MSVC>:/Zi>")
 add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/Zi>")
@@ -115,6 +116,9 @@ if (WIN32)
 	)
 	find_package(Icraft-BuyiBackend REQUIRED)
 	find_package(Icraft-HostBackend REQUIRED)
+	if(TARGET_CHIP_UPPER STREQUAL "ZG")
+		find_package(icraft-zg330backend REQUIRED)
+	endif()
 
 	link_libraries(
 

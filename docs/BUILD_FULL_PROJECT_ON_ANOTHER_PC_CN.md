@@ -130,7 +130,29 @@ cmake --build build/ZG -j1
 
 Windows 方向的本地构建仍需要本机 Icraft/CLI、CMake 包和对应编译器环境可用。deps 中已经包含 `thirdparty/lib`、`thirdparty/dll` 和头文件，但 Icraft 后端包是否可被 `find_package()` 找到，仍取决于本机 Icraft 安装和 `CMAKE_PREFIX_PATH`。
 
-## 5. 仍需注意的外部条件
+## 5. 当前编译验证结论
+
+本仓库中的瞄准与追踪控制模块可以在普通电脑上独立编译和单元测试，用来验证目标选择、单目距离滤波、云台瞄准输出、小车定距跟随输出等算法逻辑：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\run_local_aim_follow_checks.ps1
+```
+
+完整 `PLin+SingleNet+HDMI` 示例工程已经补齐源码、模型和 SDK/deps 文件，并修正了 ZG 后端包查找与 MSVC C++17 宏识别问题。需要注意的是，完整工程引用的 FPAI/modelzoo SDK 头文件包含 `unistd.h`、`usleep` 等 Linux/板端接口，因此该完整程序应优先在 30TAI 板端或 Linux 交叉编译环境中构建。Windows 本机更适合做算法模块编译、文档检查和文件完整性验证。
+
+板端连接正常后，可在 30TAI 上进入示例目录运行：
+
+```bash
+./build_30tai.sh
+```
+
+如果只想确认当前集成源码中是否包含距离显示、瞄准追踪、小车跟随和 CAN dry-run/synthetic target 相关逻辑，可以在仓库根目录运行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\verify_plin_integration.ps1 -ProjectDir .\examples\plin_yolov5_hdmi_integrated
+```
+
+## 6. 仍需注意的外部条件
 
 当前 GitHub 仓库已经补齐源码、模型和 deps 文件，但以下内容仍属于机器/板卡环境：
 
