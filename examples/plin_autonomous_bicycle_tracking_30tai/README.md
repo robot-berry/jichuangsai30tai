@@ -76,7 +76,7 @@ build_cross_3331.sh           电脑端 3.33.1 aarch64 交叉编译脚本
 - 遥控器关闭，避免遥控模式和 CAN 模式竞争
 - Windows 已安装 `ssh`、`scp`、`tar` 和 Python 3；Python 需要 Pillow：`pip install pillow`
 
-### 2. 一键部署并启动安全预览
+### 2. 一键部署并自动追踪
 
 在本目录打开 PowerShell：
 
@@ -100,18 +100,18 @@ powershell -ExecutionPolicy Bypass -File .\tools\deploy_and_start.ps1 `
 
 1. 停止旧的独立追踪进程并让电机归零。
 2. 将预编译程序、模型、配置和工具部署到：
-   `/home/fmsh/plin_pHdmi/examples/codex/plin_autonomous_bicycle_tracking`
-3. 启动检测；默认保持 `CAN_DRYRUN`，底盘和云台都不会动作。
+   `/home/fmsh/plin_pHdmi/examples/codex/plin_main_current`
+3. 启动检测并自动建立唯一的安全 CAN 会话；收到 `0xAA` 模式反馈后，启动 ByteTrack 低速底盘追踪。
 4. 启动电脑端取帧与网页服务。
 5. 打开 `http://127.0.0.1:8765/live_preview.html`。
 
-只有场地清空、遥控器关闭且确认无第二路 CAN 写入器后，才可显式增加 `-ArmChassis` 启用低速底盘桥；该开关不启用云台：
+默认部署完成后即可追踪，不需要再输入开启 CAN 的命令。追踪上限为 `35 rpm`，云台、红外和丢失搜索保持关闭；目标日志或 CAN 反馈中断时自动归零。只需要无动作预览时增加 `-PreviewOnly`：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\tools\deploy_and_start.ps1 `
   -BoardIp 192.168.125.171 `
   -BoardPassword "<板端密码>" `
-  -ArmChassis
+  -PreviewOnly
 ```
 
 网页会同步显示两路画面：左侧是板端检测结果，右侧是电脑端红外增强结果。传入 `-IrReference` 后，右侧比较当前帧与同一场景的“红外关闭”帧，并屏蔽顶部状态栏、紫色检测框及其文字标签；当前标定要求红点相对关闭帧新增红色差分、红通道高于绿通道、面积至少 `30` 像素。整幅画面保持灰度，只把唯一候选点显示成红色。红外关闭时应显示 `IR: NONE`；弱光点短时低于阈值时会在原位置保持 6 帧，状态栏显示 `IR: DETECTED`、`IR: HELD` 或 `IR: NONE`。
@@ -139,7 +139,7 @@ python .\tools\calibrate_ir_thresholds.py `
 ```powershell
 python .\tools\preview_plin_network_frames.py `
   --target root@192.168.125.171 `
-  --remote-dir /home/fmsh/plin_pHdmi/examples/codex/plin_autonomous_bicycle_tracking `
+  --remote-dir /home/fmsh/plin_pHdmi/examples/codex/plin_main_current `
   --out-dir .\runtime\network_preview `
   --seconds 7200 `
   --ir-reference .\runtime\ir_calibration\ir_off.jpg

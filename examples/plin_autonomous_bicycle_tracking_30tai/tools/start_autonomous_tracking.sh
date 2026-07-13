@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-REMOTE_DIR="${REMOTE_DIR:-/home/fmsh/plin_pHdmi/examples/codex/plin_autonomous_bicycle_tracking}"
+REMOTE_DIR="${REMOTE_DIR:-/home/fmsh/plin_pHdmi/examples/codex/plin_main_current}"
 LOG_DIR="$REMOTE_DIR/logs"
 VISION_LOG="$LOG_DIR/plin_live.log"
 BRIDGE_PID_FILE="$LOG_DIR/safe_tracking_bridge.pid"
@@ -53,9 +53,11 @@ then
     echo "$SAFE_PID" > "$SAFE_PID_FILE"
 
     READY=0
-    for _ in 1 2 3 4 5 6 7 8 9 10; do
+    for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
         sleep 0.2
-        if [ -S "$SAFE_SOCKET" ] && kill -0 "$SAFE_PID" 2>/dev/null; then
+        if [ -S "$SAFE_SOCKET" ] && [ -f "$SAFE_STATUS" ] && \
+           grep -q '"mode": 170' "$SAFE_STATUS" && \
+           kill -0 "$SAFE_PID" 2>/dev/null; then
             READY=1
             break
         fi

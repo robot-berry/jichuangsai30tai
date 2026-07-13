@@ -2,7 +2,7 @@ param(
     [string]$BoardIp = "192.168.125.171",
     [string]$BoardUser = "root",
     [string]$BoardPassword = "",
-    [string]$RemoteDir = "/home/fmsh/plin_pHdmi/examples/codex/plin_autonomous_bicycle_tracking",
+    [string]$RemoteDir = "/home/fmsh/plin_pHdmi/examples/codex/plin_main_current",
     [int]$PreviewPort = 8765,
     [double]$IrGain = 4.0,
     [int]$IrRedMin = 180,
@@ -10,6 +10,7 @@ param(
     [int]$IrReflectionMax = 200,
     [int]$IrLocalContrast = 8,
     [string]$IrReference = "",
+    [switch]$PreviewOnly,
     [switch]$ArmChassis,
     [switch]$NoOpenBrowser
 )
@@ -20,6 +21,27 @@ $Target = "$BoardUser@$BoardIp"
 $OutDir = Join-Path $ProjectDir "runtime\network_preview"
 $Python = Join-Path $env:USERPROFILE ".cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe"
 if (-not (Test-Path $Python)) { $Python = "python" }
+$EnableChassis = -not $PreviewOnly
+if ($PreviewOnly -and $ArmChassis) {
+    throw "-PreviewOnly and -ArmChassis cannot be used together."
+}
+
+function Find-SshTool([string]$Name) {
+    $Command = Get-Command "$Name.exe" -ErrorAction SilentlyContinue
+    if ($Command) { return $Command.Source }
+
+    $Candidates = @(
+        (Join-Path $env:SystemRoot "System32\OpenSSH\$Name.exe"),
+        (Join-Path $env:USERPROFILE ".cache\codex-runtimes\codex-primary-runtime\dependencies\native\git\usr\bin\$Name.exe")
+    )
+    foreach ($Candidate in $Candidates) {
+        if (Test-Path $Candidate) { return $Candidate }
+    }
+    throw "Missing $Name. Install Windows OpenSSH or Git for Windows."
+}
+
+$Ssh = Find-SshTool "ssh"
+$Scp = Find-SshTool "scp"
 
 if ([string]::IsNullOrWhiteSpace($BoardPassword)) {
     if (-not [string]::IsNullOrWhiteSpace($env:BOARD_PASS)) {
@@ -66,6 +88,7 @@ $StageDir = Join-Path $env:TEMP "plin_autonomous_stage_$SessionId"
 $Archive = Join-Path $env:TEMP "plin_autonomous_$SessionId.tar.gz"
 $AskPass = Join-Path $env:TEMP "plin_askpass_$SessionId.cmd"
 $RemoteArchive = "/tmp/plin_autonomous_$SessionId.tar.gz"
+$BoardStarted = $false
 $SshArgs = @(
     "-o", "ConnectTimeout=10",
     "-o", "StrictHostKeyChecking=no",
@@ -96,23 +119,34 @@ try {
     $env:SSH_ASKPASS_REQUIRE = "force"
     $env:DISPLAY = "codex"
 
-    & ssh @SshArgs $Target "if [ -x '$RemoteDir/stop_all.sh' ]; then '$RemoteDir/stop_all.sh'; fi; rm -rf '$RemoteDir'; mkdir -p '$RemoteDir'"
+    & $Ssh @SshArgs $Target "if [ -x '$RemoteDir/stop_all.sh' ]; then '$RemoteDir/stop_all.sh'; fi; rm -rf '$RemoteDir'; mkdir -p '$RemoteDir'"
     if ($LASTEXITCODE -ne 0) { throw "Board preparation failed." }
-    & scp @SshArgs $Archive "${Target}:$RemoteArchive"
+    & $Scp @SshArgs $Archive "${Target}:$RemoteArchive"
     if ($LASTEXITCODE -ne 0) { throw "Board upload failed." }
 
-    $RemoteStart = "tar -xzf '$RemoteArchive' -C '$RemoteDir'; chmod 755 '$RemoteDir/build/ZG/sdicamera+yolov5+hdmi' '$RemoteDir'/*.sh '$RemoteDir'/tools/*.sh '$RemoteDir'/tools/*.py; '$RemoteDir/start_vision_dryrun.sh'"
-    if ($ArmChassis) {
-        $RemoteStart += "; sleep 8; REMOTE_DIR='$RemoteDir' '$RemoteDir/tools/start_autonomous_tracking.sh'"
+    $RemoteStart = "set -e; tar -xzf '$RemoteArchive' -C '$RemoteDir'; chmod 755 '$RemoteDir/build/ZG/sdicamera+yolov5+hdmi' '$RemoteDir'/*.sh '$RemoteDir'/tools/*.sh '$RemoteDir'/tools/*.py; '$RemoteDir/start_vision_dryrun.sh'"
+    if ($EnableChassis) {
+        $RemoteStart += "; sleep 8; if ! REMOTE_DIR='$RemoteDir' '$RemoteDir/tools/start_autonomous_tracking.sh'; then '$RemoteDir/stop_all.sh'; exit 1; fi"
     }
-    & ssh @SshArgs $Target $RemoteStart
+    & $Ssh @SshArgs $Target $RemoteStart
     if ($LASTEXITCODE -ne 0) { throw "Board runtime failed to start." }
+    $BoardStarted = $true
+
+    Get-CimInstance Win32_Process | Where-Object {
+        ($_.Name -eq "python.exe" -and $_.CommandLine -match "preview_plin_network_frames.py|http.server.+$PreviewPort") -or
+        ($_.Name -eq "ssh.exe" -and $_.CommandLine -match "stream_plin_hdmi_udma.py")
+    } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    Start-Sleep -Milliseconds 500
 
     New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
+    Remove-Item -Path (Join-Path $OutDir "live_frame_*.jpg"), `
+        (Join-Path $OutDir "live_enhanced_*.jpg"), `
+        (Join-Path $OutDir "live_status.txt") -Force -ErrorAction SilentlyContinue
     $PreviewStdout = Join-Path $ProjectDir "runtime\preview_stdout.log"
     $PreviewStderr = Join-Path $ProjectDir "runtime\preview_stderr.log"
     $PreviewArgs = @(
         (Join-Path $ProjectDir "tools\preview_plin_network_frames.py"),
+        "--ssh", $Ssh,
         "--target", $Target,
         "--remote-dir", $RemoteDir,
         "--out-dir", $OutDir,
@@ -136,6 +170,19 @@ try {
         -RedirectStandardOutput $PreviewStdout `
         -RedirectStandardError $PreviewStderr | Out-Null
 
+    $PreviewReady = $false
+    for ($Attempt = 0; $Attempt -lt 40; $Attempt++) {
+        Start-Sleep -Milliseconds 250
+        if (Get-ChildItem -Path $OutDir -Filter "live_frame_*.jpg" -ErrorAction SilentlyContinue | Select-Object -First 1) {
+            $PreviewReady = $true
+            break
+        }
+    }
+    if (-not $PreviewReady) {
+        $PreviewError = if (Test-Path $PreviewStderr) { Get-Content $PreviewStderr -Raw } else { "no diagnostic" }
+        throw "Live preview did not publish its first frame: $PreviewError"
+    }
+
     if (-not (Get-NetTCPConnection -LocalPort $PreviewPort -State Listen -ErrorAction SilentlyContinue)) {
         Start-Process -FilePath $Python `
             -ArgumentList @("-m", "http.server", "$PreviewPort", "--bind", "127.0.0.1", "--directory", $OutDir) `
@@ -147,13 +194,18 @@ try {
     $PreviewUrl = "http://127.0.0.1:$PreviewPort/live_preview.html"
     Start-Sleep -Seconds 2
     if (-not $NoOpenBrowser) { Start-Process $PreviewUrl }
-    if ($ArmChassis) {
-        Write-Host "Chassis tracking is armed." -ForegroundColor Yellow
+    if ($EnableChassis) {
+        Write-Host "ByteTrack chassis tracking is armed automatically." -ForegroundColor Yellow
     } else {
         Write-Host "Safe preview is running; chassis and gimbal remain disarmed." -ForegroundColor Green
     }
     Write-Host "Board path: $RemoteDir"
     Write-Host "Preview: $PreviewUrl" -ForegroundColor Green
+} catch {
+    if ($BoardStarted -and $EnableChassis) {
+        & $Ssh @SshArgs $Target "'$RemoteDir/stop_all.sh'" 2>$null
+    }
+    throw
 } finally {
     Remove-Item -LiteralPath $StageDir -Recurse -Force -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath $Archive -Force -ErrorAction SilentlyContinue

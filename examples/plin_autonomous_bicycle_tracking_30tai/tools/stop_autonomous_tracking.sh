@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-REMOTE_DIR="${REMOTE_DIR:-/home/fmsh/plin_pHdmi/examples/codex/plin_autonomous_bicycle_tracking}"
+REMOTE_DIR="${REMOTE_DIR:-/home/fmsh/plin_pHdmi/examples/codex/plin_main_current}"
 PID_FILE="$REMOTE_DIR/logs/safe_tracking_bridge.pid"
 SAFE_SOCKET=/tmp/plin_safe_can_control.sock
 
