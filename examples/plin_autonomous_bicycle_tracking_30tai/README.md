@@ -9,6 +9,8 @@
 - 真实摄像头输入和 HDMI 图像处理链路
 - YOLOv5 `bicycle` 检测
 - ByteTrack 跨帧 ID、低置信度二次匹配和短暂遮挡恢复
+- 每辆自行车的 ID 显示在检测框内部，锁定目标为绿色，其他目标为黄色
+- 原始轨迹在短时遮挡后重新编号时，会按位置和尺寸恢复遮挡前的显示 ID
 - 多个自行车出现时保持当前锁定 ID，避免控制目标逐帧跳换
 - 目标可见时自动小幅转向居中
 - 连续丢失后按最后目标方向搜索，并周期性反向扫描
@@ -175,7 +177,7 @@ ByteTrack 位于“YOLOv5 自行车检测”和“控制目标选择”之间。
 |---|---:|---|
 | `AIM_FOLLOW_BYTETRACK_ENABLE` | `1` | `0` 时退回原连续目标选择器 |
 | `AIM_FOLLOW_BYTETRACK_FRAME_RATE` | `30` | 跟踪器时间尺度 |
-| `AIM_FOLLOW_BYTETRACK_BUFFER_FRAMES` | `30` | 丢失轨迹保留帧数 |
+| `AIM_FOLLOW_BYTETRACK_BUFFER_FRAMES` | `90` | 丢失轨迹和显示 ID 的保留帧数（30 FPS 时约 3 秒） |
 | `AIM_FOLLOW_BYTETRACK_SWITCH_DELAY_FRAMES` | `3` | 当前 ID 丢失后允许切换目标的等待帧数 |
 | `AIM_FOLLOW_BYTETRACK_TRACK_THRESH` | `0.30` | 高/低置信度检测分界 |
 | `AIM_FOLLOW_BYTETRACK_HIGH_THRESH` | `0.45` | 新建轨迹最低置信度 |

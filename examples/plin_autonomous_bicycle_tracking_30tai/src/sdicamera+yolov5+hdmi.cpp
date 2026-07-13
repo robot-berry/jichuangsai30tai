@@ -173,7 +173,7 @@ const float AIM_FOLLOW_SELECTOR_AREA_SWITCH_RATIO = 1.8f;
 const int AIM_FOLLOW_SELECTOR_MAX_LOST_FRAMES = 5;
 const bool AIM_FOLLOW_BYTETRACK_ENABLE = true;
 const int AIM_FOLLOW_BYTETRACK_FRAME_RATE = 30;
-const int AIM_FOLLOW_BYTETRACK_BUFFER_FRAMES = 30;
+const int AIM_FOLLOW_BYTETRACK_BUFFER_FRAMES = 90;
 const int AIM_FOLLOW_BYTETRACK_SWITCH_DELAY_FRAMES = 3;
 const float AIM_FOLLOW_BYTETRACK_TRACK_THRESH = 0.30f;
 const float AIM_FOLLOW_BYTETRACK_HIGH_THRESH = 0.45f;
@@ -823,6 +823,11 @@ int main(int argc, char *argv[])
     aim_follow::TrackedTargetSelectorConfig tracked_selector_cfg;
     tracked_selector_cfg.max_missing_frames = aim_follow_bytetrack_switch_delay_frames;
     aim_follow::TrackedTargetSelector tracked_target_selector(tracked_selector_cfg);
+    aim_follow::StableTrackIdConfig stable_id_cfg;
+    stable_id_cfg.frame_width = static_cast<float>(yolov5_cfg.FRAME_W);
+    stable_id_cfg.frame_height = static_cast<float>(yolov5_cfg.FRAME_H);
+    stable_id_cfg.max_missing_frames = aim_follow_bytetrack_buffer_frames;
+    aim_follow::StableTrackIdMapper stable_id_mapper(stable_id_cfg);
 
     aim_follow::DistanceEstimatorConfig distance_cfg;
     distance_cfg.target_real_width_m = distance_target_real_width_m;
@@ -1095,6 +1100,7 @@ int main(int argc, char *argv[])
         int selected_track_id = -1;
         cv::Rect2f control_model_box;
         cv::Rect2f control_display_box;
+        std::vector<std::pair<int, cv::Rect2f>> tracked_display_boxes;
 
         if (aim_follow_bytetrack_enable) {
             std::vector<byteTracker::Object> tracker_objects;
@@ -1108,6 +1114,7 @@ int main(int argc, char *argv[])
             }
 
             const auto tracks = bicycle_tracker.update(tracker_objects);
+            tracked_display_boxes.reserve(tracks.size());
             std::vector<aim_follow::TrackedTargetCandidate> tracked_candidates;
             tracked_candidates.reserve(tracks.size());
             for (int track_idx = 0; track_idx < static_cast<int>(tracks.size()); ++track_idx) {
@@ -1125,6 +1132,19 @@ int main(int argc, char *argv[])
                 tracked_candidates.push_back(candidate);
             }
 
+            const auto stable_track_ids = stable_id_mapper.update(tracked_candidates);
+            for (int candidate_pos = 0;
+                 candidate_pos < static_cast<int>(tracked_candidates.size());
+                 ++candidate_pos) {
+                auto &candidate = tracked_candidates[candidate_pos];
+                candidate.track_id = stable_track_ids[candidate_pos];
+                const auto &track = tracks[candidate.index];
+                tracked_display_boxes.emplace_back(
+                    candidate.track_id,
+                    map_box_to_display(cv::Rect2f(
+                        track.tlwh[0], track.tlwh[1], track.tlwh[2], track.tlwh[3])));
+            }
+
             const int selected_track_index = tracked_target_selector.select(tracked_candidates);
             if (selected_track_index >= 0 &&
                 selected_track_index < static_cast<int>(tracks.size())) {
@@ -1132,7 +1152,7 @@ int main(int argc, char *argv[])
                 control_model_box = cv::Rect2f(
                     track.tlwh[0], track.tlwh[1], track.tlwh[2], track.tlwh[3]);
                 control_display_box = map_box_to_display(control_model_box);
-                selected_track_id = track.track_id;
+                selected_track_id = tracked_target_selector.lockedTrackId();
                 has_control_target = true;
 
                 float nearest_center_distance = std::numeric_limits<float>::max();
@@ -1354,17 +1374,43 @@ int main(int argc, char *argv[])
                                       aim_follow_chassis_enable ? "ON" : "OFF"),
                           3, is_can_dry_run_enabled() ? cv::Scalar(0, 255, 255) : cv::Scalar(0, 0, 255));
 
-        if (aim_follow_bytetrack_enable && has_control_target) {
-            cv::rectangle(cvmat_to_draw, control_display_box,
-                          cv::Scalar(0, 255, 0), 4, cv::LINE_AA);
-            const cv::Point track_origin(
-                static_cast<int>(control_display_box.x),
-                std::max(28, static_cast<int>(control_display_box.y) - 8));
-            const std::string track_label = fmt::format("ByteTrack ID:{}", selected_track_id);
-            cv::putText(cvmat_to_draw, track_label, track_origin,
-                        cv::FONT_HERSHEY_DUPLEX, 0.9, cv::Scalar(0, 0, 0), 4, cv::LINE_AA);
-            cv::putText(cvmat_to_draw, track_label, track_origin,
-                        cv::FONT_HERSHEY_DUPLEX, 0.9, cv::Scalar(0, 255, 0), 2, cv::LINE_AA);
+        if (aim_follow_bytetrack_enable) {
+            for (const auto &tracked_box : tracked_display_boxes) {
+                const int track_id = tracked_box.first;
+                const cv::Rect2f &box = tracked_box.second;
+                const bool is_selected = has_control_target && track_id == selected_track_id;
+                const cv::Scalar color = is_selected
+                    ? cv::Scalar(0, 255, 0)
+                    : cv::Scalar(0, 215, 255);
+                cv::rectangle(cvmat_to_draw, box, color,
+                              is_selected ? 4 : 2, cv::LINE_AA);
+
+                const std::string track_label = fmt::format("ID:{}", track_id);
+                int baseline = 0;
+                const double font_scale = 0.8;
+                const int text_thickness = 2;
+                const cv::Size text_size = cv::getTextSize(
+                    track_label, cv::FONT_HERSHEY_DUPLEX,
+                    font_scale, text_thickness, &baseline);
+                const int label_x = std::clamp(
+                    static_cast<int>(box.x) + 4,
+                    0,
+                    std::max(0, cvmat_to_draw.cols - text_size.width - 10));
+                const int label_top = std::clamp(
+                    static_cast<int>(box.y) + 4,
+                    0,
+                    std::max(0, cvmat_to_draw.rows - text_size.height - baseline - 10));
+                const cv::Rect label_background(
+                    label_x,
+                    label_top,
+                    text_size.width + 10,
+                    text_size.height + baseline + 8);
+                cv::rectangle(cvmat_to_draw, label_background, color, cv::FILLED);
+                cv::putText(cvmat_to_draw, track_label,
+                            cv::Point(label_x + 5, label_top + text_size.height + 2),
+                            cv::FONT_HERSHEY_DUPLEX, font_scale,
+                            cv::Scalar(0, 0, 0), text_thickness, cv::LINE_AA);
+            }
         }
 
         if (false && target_index >= 0) {

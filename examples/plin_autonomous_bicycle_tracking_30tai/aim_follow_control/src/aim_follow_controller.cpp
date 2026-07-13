@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace aim_follow {
 
@@ -80,6 +81,109 @@ void TargetSelector::remember(const TargetCandidate &candidate) {
     last_center_x_ = candidate.center_x;
     last_center_y_ = candidate.center_y;
     last_area_ = candidate.area;
+}
+
+StableTrackIdMapper::StableTrackIdMapper(const StableTrackIdConfig &config)
+    : cfg_(config) {}
+
+void StableTrackIdMapper::reset() {
+    frame_index_ = 0;
+    next_stable_id_ = 1;
+    memories_.clear();
+}
+
+std::vector<int> StableTrackIdMapper::update(
+    const std::vector<TrackedTargetCandidate> &raw_tracks) {
+    ++frame_index_;
+    const int max_missing = std::max(0, cfg_.max_missing_frames);
+    memories_.erase(
+        std::remove_if(memories_.begin(), memories_.end(),
+                       [&](const TrackMemory &memory) {
+                           return frame_index_ - memory.last_seen_frame > max_missing;
+                       }),
+        memories_.end());
+
+    std::vector<int> stable_ids(raw_tracks.size(), -1);
+    std::vector<bool> memory_used(memories_.size(), false);
+
+    for (int track_pos = 0; track_pos < static_cast<int>(raw_tracks.size()); ++track_pos) {
+        for (int memory_pos = 0; memory_pos < static_cast<int>(memories_.size()); ++memory_pos) {
+            if (!memory_used[memory_pos] &&
+                memories_[memory_pos].raw_track_id == raw_tracks[track_pos].track_id) {
+                stable_ids[track_pos] = memories_[memory_pos].stable_track_id;
+                memory_used[memory_pos] = true;
+                break;
+            }
+        }
+    }
+
+    for (int track_pos = 0; track_pos < static_cast<int>(raw_tracks.size()); ++track_pos) {
+        if (stable_ids[track_pos] >= 0) {
+            continue;
+        }
+
+        int best_memory = -1;
+        float best_cost = std::numeric_limits<float>::max();
+        for (int memory_pos = 0; memory_pos < static_cast<int>(memories_.size()); ++memory_pos) {
+            if (memory_used[memory_pos] ||
+                !areaCompatible(raw_tracks[track_pos].area, memories_[memory_pos].area)) {
+                continue;
+            }
+            const float distance = normalizedDistance(raw_tracks[track_pos], memories_[memory_pos]);
+            if (distance <= std::max(0.0f, cfg_.max_center_jump_norm) &&
+                distance < best_cost) {
+                best_cost = distance;
+                best_memory = memory_pos;
+            }
+        }
+
+        if (best_memory >= 0) {
+            stable_ids[track_pos] = memories_[best_memory].stable_track_id;
+            memory_used[best_memory] = true;
+        } else {
+            TrackMemory memory;
+            memory.stable_track_id = next_stable_id_++;
+            memories_.push_back(memory);
+            memory_used.push_back(true);
+            stable_ids[track_pos] = memory.stable_track_id;
+        }
+    }
+
+    for (int track_pos = 0; track_pos < static_cast<int>(raw_tracks.size()); ++track_pos) {
+        for (auto &memory : memories_) {
+            if (memory.stable_track_id != stable_ids[track_pos]) {
+                continue;
+            }
+            memory.raw_track_id = raw_tracks[track_pos].track_id;
+            memory.center_x = raw_tracks[track_pos].center_x;
+            memory.center_y = raw_tracks[track_pos].center_y;
+            memory.area = raw_tracks[track_pos].area;
+            memory.last_seen_frame = frame_index_;
+            break;
+        }
+    }
+    return stable_ids;
+}
+
+float StableTrackIdMapper::normalizedDistance(
+    const TrackedTargetCandidate &track, const TrackMemory &memory) const {
+    const float dx = track.center_x - memory.center_x;
+    const float dy = track.center_y - memory.center_y;
+    const float diagonal = std::sqrt(
+        cfg_.frame_width * cfg_.frame_width + cfg_.frame_height * cfg_.frame_height);
+    if (diagonal <= 1.0f) {
+        return 1.0f;
+    }
+    return std::sqrt(dx * dx + dy * dy) / diagonal;
+}
+
+bool StableTrackIdMapper::areaCompatible(float current_area, float previous_area) const {
+    if (current_area <= 1.0f || previous_area <= 1.0f) {
+        return false;
+    }
+    const float ratio = std::max(current_area, previous_area) /
+                        std::min(current_area, previous_area);
+    return ratio <= std::max(1.0f, cfg_.max_area_ratio);
 }
 
 TrackedTargetSelector::TrackedTargetSelector(const TrackedTargetSelectorConfig &config)

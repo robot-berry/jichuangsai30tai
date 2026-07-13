@@ -1,1 +1,1 @@
-5f64ce42d89625186aafdd10f148ebe8b4744dea62c3821a31758bcc441a2a6e  prebuilt/ZG/sdicamera+yolov5+hdmi
+697ba3fcdd92a067015cd66e2a9fa205cb61a2cbc8d8c2a9a64a09b6cb4e8076  prebuilt/ZG/sdicamera+yolov5+hdmi

@@ -73,6 +73,45 @@ int main() {
     assert(tracked_selector.select(only_other_track) == 0);
     assert(tracked_selector.lockedTrackId() == 11);
 
+    aim_follow::StableTrackIdConfig stable_id_cfg;
+    stable_id_cfg.frame_width = 640.0f;
+    stable_id_cfg.frame_height = 640.0f;
+    stable_id_cfg.max_missing_frames = 3;
+    stable_id_cfg.max_center_jump_norm = 0.15f;
+    stable_id_cfg.max_area_ratio = 2.5f;
+    aim_follow::StableTrackIdMapper stable_id_mapper(stable_id_cfg);
+
+    const auto initial_ids = stable_id_mapper.update({
+        {0, 101, 160.0f, 300.0f, 10000.0f, 0.90f},
+        {1, 202, 480.0f, 300.0f, 9000.0f, 0.88f},
+    });
+    assert(initial_ids.size() == 2);
+    assert(initial_ids[0] != initial_ids[1]);
+
+    const auto one_visible_ids = stable_id_mapper.update({
+        {0, 202, 478.0f, 302.0f, 9200.0f, 0.87f},
+    });
+    assert(one_visible_ids.size() == 1);
+    assert(one_visible_ids[0] == initial_ids[1]);
+
+    const auto recovered_ids = stable_id_mapper.update({
+        {0, 202, 476.0f, 304.0f, 9100.0f, 0.86f},
+        {1, 303, 166.0f, 297.0f, 10400.0f, 0.91f},
+    });
+    assert(recovered_ids.size() == 2);
+    assert(recovered_ids[0] == initial_ids[1]);
+    assert(recovered_ids[1] == initial_ids[0]);
+
+    const auto distinct_new_ids = stable_id_mapper.update({
+        {0, 202, 474.0f, 305.0f, 9000.0f, 0.86f},
+        {1, 303, 168.0f, 296.0f, 10200.0f, 0.90f},
+        {2, 404, 320.0f, 80.0f, 2500.0f, 0.82f},
+    });
+    assert(distinct_new_ids.size() == 3);
+    assert(distinct_new_ids[0] != distinct_new_ids[1]);
+    assert(distinct_new_ids[2] != distinct_new_ids[0]);
+    assert(distinct_new_ids[2] != distinct_new_ids[1]);
+
     aim_follow::DistanceEstimatorConfig distance_cfg;
     distance_cfg.target_real_width_m = 0.24f;
     distance_cfg.focal_length_px = 553.0f;

@@ -52,6 +52,42 @@ struct TrackedTargetCandidate {
     float score = 0.0f;
 };
 
+struct StableTrackIdConfig {
+    float frame_width = 640.0f;
+    float frame_height = 640.0f;
+    int max_missing_frames = 90;
+    float max_center_jump_norm = 0.15f;
+    float max_area_ratio = 2.5f;
+};
+
+class StableTrackIdMapper {
+public:
+    explicit StableTrackIdMapper(
+        const StableTrackIdConfig &config = StableTrackIdConfig());
+
+    void reset();
+    std::vector<int> update(const std::vector<TrackedTargetCandidate> &raw_tracks);
+
+private:
+    struct TrackMemory {
+        int raw_track_id = -1;
+        int stable_track_id = -1;
+        float center_x = 0.0f;
+        float center_y = 0.0f;
+        float area = 0.0f;
+        int last_seen_frame = 0;
+    };
+
+    StableTrackIdConfig cfg_;
+    int frame_index_ = 0;
+    int next_stable_id_ = 1;
+    std::vector<TrackMemory> memories_;
+
+    float normalizedDistance(const TrackedTargetCandidate &track,
+                             const TrackMemory &memory) const;
+    bool areaCompatible(float current_area, float previous_area) const;
+};
+
 struct TrackedTargetSelectorConfig {
     int max_missing_frames = 3;
 };
