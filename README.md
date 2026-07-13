@@ -13,10 +13,26 @@ It is not a copy of the original PLin + SingleNet + HDMI demo project. Instead, 
 - DetPost/DetPostZG reference model files for operator learning
 - complete integrated PLin example project for rebuilding on another computer
 - ByteTrack Icraft example project for multi-object tracking learning and later 30TAI adaptation
+- verified standalone autonomous bicycle-tracking project with prebuilt 3.33.1 board runtime
 - full compressed 30TAI/FPAI `deps` package for SDK headers and third-party libraries
 - 30TAI build, smoke-test, and log-analysis workflow
 
 Current completion and board-validation status is tracked in `STATUS.md`.
+
+## 可直接部署的完整实车工程
+
+真实摄像头、目标丢失搜索、自动居中、1 米定距、单路安全 CAN 和电脑实时预览已经整理为独立工程：
+
+```text
+examples/plin_autonomous_bicycle_tracking_30tai/
+```
+
+从这里开始使用：
+
+```text
+examples/plin_autonomous_bicycle_tracking_30tai/README.md
+examples/plin_autonomous_bicycle_tracking_30tai/tools/deploy_and_start.ps1
+```
 
 Algorithm selection, control logic, parameter tuning, and 30TAI deployment constraints are described in `docs/ALGORITHM_DESIGN.md`.
 
@@ -40,6 +56,14 @@ aim_follow_control/
   ACCEPTANCE_CHECKLIST.md
 
 examples/
+  plin_autonomous_bicycle_tracking_30tai/
+    README.md
+    prebuilt/ZG/sdicamera+yolov5+hdmi
+    src/
+    configs/ZG/
+    imodel/ZG/
+    aim_follow_control/
+    tools/deploy_and_start.ps1
   plin_yolov5_hdmi_integrated/
     CMakeLists.txt
     src/

@@ -1,0 +1,8 @@
+build/
+runtime/
+logs/
+__pycache__/
+*.pyc
+*.log
+*.swap
+*.tmp
