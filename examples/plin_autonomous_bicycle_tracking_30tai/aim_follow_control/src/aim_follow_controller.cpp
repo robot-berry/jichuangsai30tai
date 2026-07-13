@@ -82,6 +82,60 @@ void TargetSelector::remember(const TargetCandidate &candidate) {
     last_area_ = candidate.area;
 }
 
+TrackedTargetSelector::TrackedTargetSelector(const TrackedTargetSelectorConfig &config)
+    : cfg_(config) {}
+
+void TrackedTargetSelector::reset() {
+    locked_track_id_ = -1;
+    missing_frames_ = 0;
+}
+
+int TrackedTargetSelector::select(const std::vector<TrackedTargetCandidate> &candidates) {
+    if (locked_track_id_ >= 0) {
+        for (const auto &candidate : candidates) {
+            if (candidate.track_id == locked_track_id_) {
+                missing_frames_ = 0;
+                return candidate.index;
+            }
+        }
+
+        ++missing_frames_;
+        if (missing_frames_ <= std::max(0, cfg_.max_missing_frames)) {
+            return -1;
+        }
+        reset();
+    }
+
+    if (candidates.empty()) {
+        return -1;
+    }
+    return selectInitial(candidates);
+}
+
+int TrackedTargetSelector::lockedTrackId() const {
+    return locked_track_id_;
+}
+
+int TrackedTargetSelector::missingFrames() const {
+    return missing_frames_;
+}
+
+int TrackedTargetSelector::selectInitial(
+    const std::vector<TrackedTargetCandidate> &candidates) {
+    int best_pos = 0;
+    for (int i = 1; i < static_cast<int>(candidates.size()); ++i) {
+        if (candidates[i].area > candidates[best_pos].area ||
+            (candidates[i].area == candidates[best_pos].area &&
+             candidates[i].score > candidates[best_pos].score)) {
+            best_pos = i;
+        }
+    }
+
+    locked_track_id_ = candidates[best_pos].track_id;
+    missing_frames_ = 0;
+    return candidates[best_pos].index;
+}
+
 MonocularDistanceEstimator::MonocularDistanceEstimator(const DistanceEstimatorConfig &config)
     : cfg_(config) {}
 

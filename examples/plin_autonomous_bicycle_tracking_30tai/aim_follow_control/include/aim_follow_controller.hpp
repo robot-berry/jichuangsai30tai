@@ -43,6 +43,37 @@ private:
     void remember(const TargetCandidate &candidate);
 };
 
+struct TrackedTargetCandidate {
+    int index = -1;
+    int track_id = -1;
+    float center_x = 0.0f;
+    float center_y = 0.0f;
+    float area = 0.0f;
+    float score = 0.0f;
+};
+
+struct TrackedTargetSelectorConfig {
+    int max_missing_frames = 3;
+};
+
+class TrackedTargetSelector {
+public:
+    explicit TrackedTargetSelector(
+        const TrackedTargetSelectorConfig &config = TrackedTargetSelectorConfig());
+
+    void reset();
+    int select(const std::vector<TrackedTargetCandidate> &candidates);
+    int lockedTrackId() const;
+    int missingFrames() const;
+
+private:
+    TrackedTargetSelectorConfig cfg_;
+    int locked_track_id_ = -1;
+    int missing_frames_ = 0;
+
+    int selectInitial(const std::vector<TrackedTargetCandidate> &candidates);
+};
+
 struct TargetObservation {
     bool valid = false;
     float center_x = 0.0f;

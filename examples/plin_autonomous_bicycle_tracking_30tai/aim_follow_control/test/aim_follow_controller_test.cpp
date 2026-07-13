@@ -45,6 +45,34 @@ int main() {
     }
     assert(selector.select(first_candidates) == 1);
 
+    aim_follow::TrackedTargetSelectorConfig tracked_selector_cfg;
+    tracked_selector_cfg.max_missing_frames = 2;
+    aim_follow::TrackedTargetSelector tracked_selector(tracked_selector_cfg);
+    std::vector<aim_follow::TrackedTargetCandidate> first_tracks = {
+        {0, 11, 400.0f, 400.0f, 500.0f, 0.90f},
+        {1, 22, 900.0f, 500.0f, 1000.0f, 0.80f},
+    };
+    assert(tracked_selector.select(first_tracks) == 1);
+    assert(tracked_selector.lockedTrackId() == 22);
+
+    std::vector<aim_follow::TrackedTargetCandidate> crossing_tracks = {
+        {0, 11, 910.0f, 510.0f, 4000.0f, 0.95f},
+        {1, 22, 420.0f, 400.0f, 700.0f, 0.70f},
+    };
+    assert(tracked_selector.select(crossing_tracks) == 1);
+    assert(tracked_selector.lockedTrackId() == 22);
+
+    std::vector<aim_follow::TrackedTargetCandidate> only_other_track = {
+        {0, 11, 910.0f, 510.0f, 4000.0f, 0.95f},
+    };
+    assert(tracked_selector.select(only_other_track) == -1);
+    assert(tracked_selector.select(crossing_tracks) == 1);
+    assert(tracked_selector.missingFrames() == 0);
+    assert(tracked_selector.select(only_other_track) == -1);
+    assert(tracked_selector.select(only_other_track) == -1);
+    assert(tracked_selector.select(only_other_track) == 0);
+    assert(tracked_selector.lockedTrackId() == 11);
+
     aim_follow::DistanceEstimatorConfig distance_cfg;
     distance_cfg.target_real_width_m = 0.24f;
     distance_cfg.focal_length_px = 553.0f;

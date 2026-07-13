@@ -2,12 +2,14 @@
 
 这是已经在 30TAI/ZG330、Icraft 3.33.1 环境实车验证的独立工程。它从真实摄像头检测自行车，自动控制小车完成目标搜索、画面居中和 1 米定距跟随，同时将处理画面实时传到电脑浏览器。
 
-> 当前版本没有集成 ByteTrack。它使用 YOLOv5 检测、连续目标选择和闭环状态机完成单目标追踪。ByteTrack 工程仍是另一个多人多目标 ID 跟踪示例，不要把两者混用。
+> 当前版本已集成 ByteTrack C++ 跟踪器。YOLOv5 仍只负责自行车检测，ByteTrack 在检测后维护跨帧 `track_id`，控制层只锁定一个稳定 ID；没有增加第二个神经网络模型。
 
 ## 已验证功能
 
 - 真实摄像头输入和 HDMI 图像处理链路
 - YOLOv5 `bicycle` 检测
+- ByteTrack 跨帧 ID、低置信度二次匹配和短暂遮挡恢复
+- 多个自行车出现时保持当前锁定 ID，避免控制目标逐帧跳换
 - 目标可见时自动小幅转向居中
 - 连续丢失后按最后目标方向搜索，并周期性反向扫描
 - 目标重新出现后立即退出搜索并恢复小幅追踪
@@ -24,11 +26,12 @@
 ```mermaid
 flowchart LR
     A[真实摄像头] --> B[YOLOv5 自行车检测]
-    B --> C[连续目标选择]
-    C --> D[居中 / 搜索 / 1米定距状态机]
-    D --> E[安全桥接器]
-    E --> F[唯一 CAN 写入器]
-    F --> G[小车差速底盘]
+    B --> C[ByteTrack 跨帧 ID]
+    C --> D[稳定目标锁定]
+    D --> E[居中 / 搜索 / 1米定距状态机]
+    E --> F[安全桥接器]
+    F --> G[唯一 CAN 写入器]
+    G --> J[小车差速底盘]
     B --> H[HDMI 处理帧]
     H --> I[电脑实时预览]
 ```
@@ -40,14 +43,16 @@ flowchart LR
 ```text
 src/                         PLin + YOLOv5 + HDMI 主程序
 aim_follow_control/          距离滤波、目标选择和控制状态机
+bytetrack/                   ByteTrack、Kalman 和 LAPJV C++ 实现
 configs/ZG/                  30TAI/ZG330 配置
 imodel/ZG/                   已验证的 ZG 模型
-prebuilt/ZG/                 板上实际运行过的 3.33.1 二进制
+prebuilt/ZG/                 3.33.1 aarch64 交叉编译二进制
 tools/deploy_and_start.ps1    一键部署、启动和打开预览
 tools/stop_all.ps1            一键归零并停止全部进程
 tools/safe_*.py               CAN 唯一写入与安全桥接
 start_vision_dryrun.sh        板端检测进程启动脚本
 build_30tai.sh                3.33.1 低内存编译脚本
+build_cross_3331.sh           电脑端 3.33.1 aarch64 交叉编译脚本
 ```
 
 ## 最快使用方式
@@ -92,20 +97,34 @@ powershell -ExecutionPolicy Bypass -File .\tools\stop_all.ps1 `
 
 ## 重新编译
 
-预编译版本来自实际验收板，SHA-256 记录在 `SHA256SUMS.txt`。需要修改 C++ 时，在已经配置好 Icraft 3.33.1、`aarch64-linux-gnu-g++`、`/usr/cmake` 和 FPAI 依赖的 Linux 环境运行：
+SHA-256 记录在 `SHA256SUMS.txt`。推荐在电脑 WSL/Linux 中使用 Icraft 3.33.1 aarch64 SDK 交叉编译，避免占用板子约 1 GB 的运行内存：
+
+```bash
+ICRAFT_SDK_ROOT=/home/ly/icraft_sdk/3.33.1-board \
+DEPS_DIR=/mnt/c/Users/xushen/Desktop/hyx/30tai/fpai_demo_package_26010502/deps \
+./build_cross_3331.sh
+```
+
+脚本会检查 ZG330 SDK 版本包含 `3.33.1.0`，并强制使用 `/usr/bin/aarch64-linux-gnu-g++`。输出文件为：
+
+```text
+build/cross-ZG/sdicamera+yolov5+hdmi
+```
+
+仅在完整的板端开发环境中需要原生编译时，才运行：
 
 ```bash
 chmod +x build_30tai.sh
 ./build_30tai.sh
 ```
 
-输出文件：
+板端原生编译输出文件：
 
 ```text
 build/ZG/sdicamera+yolov5+hdmi
 ```
 
-板端内存约 1 GB 时，脚本会建立 2 GB 交换文件并使用 `-j1` 编译。编译完成后，将新文件替换到 `prebuilt/ZG/sdicamera+yolov5+hdmi`，再运行一键部署脚本。
+板端内存约 1 GB 时，原生脚本会建立 2 GB 交换文件并使用 `-j1` 编译。任一种方式编译完成后，将新文件替换到 `prebuilt/ZG/sdicamera+yolov5+hdmi`，更新 `SHA256SUMS.txt`，再运行一键部署脚本。
 
 ## 当前控制参数
 
@@ -148,4 +167,16 @@ cmake --build aim_follow_control/build
 
 ## ByteTrack 的关系
 
-ByteTrack 适合多目标场景，为每个行人或物体维持跨帧 ID。当前小车任务只需要选择一个自行车并闭环控制，因此采用更轻量的连续目标选择器。后续若需要同时区分多个自行车，可在“YOLOv5 检测”和“目标选择”之间接入 ByteTrack，控制层与 CAN 安全层无需重写。
+ByteTrack 位于“YOLOv5 自行车检测”和“控制目标选择”之间。默认参数针对当前模型约 `0.5` 的常见自行车置信度调整为：建轨阈值 `0.30`、新轨确认阈值 `0.45`、匹配阈值 `0.80`。画面会显示锁定目标的 `ByteTrack ID`。
+
+可用环境变量：
+
+| 参数 | 默认值 | 说明 |
+|---|---:|---|
+| `AIM_FOLLOW_BYTETRACK_ENABLE` | `1` | `0` 时退回原连续目标选择器 |
+| `AIM_FOLLOW_BYTETRACK_FRAME_RATE` | `30` | 跟踪器时间尺度 |
+| `AIM_FOLLOW_BYTETRACK_BUFFER_FRAMES` | `30` | 丢失轨迹保留帧数 |
+| `AIM_FOLLOW_BYTETRACK_SWITCH_DELAY_FRAMES` | `3` | 当前 ID 丢失后允许切换目标的等待帧数 |
+| `AIM_FOLLOW_BYTETRACK_TRACK_THRESH` | `0.30` | 高/低置信度检测分界 |
+| `AIM_FOLLOW_BYTETRACK_HIGH_THRESH` | `0.45` | 新建轨迹最低置信度 |
+| `AIM_FOLLOW_BYTETRACK_MATCH_THRESH` | `0.80` | 第一阶段关联阈值 |

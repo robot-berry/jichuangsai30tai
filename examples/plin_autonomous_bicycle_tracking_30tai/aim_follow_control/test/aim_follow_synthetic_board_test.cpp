@@ -188,6 +188,9 @@ std::vector<Scenario> buildScenarios() {
     float t = 0.05f;
     aim_follow::DistanceEstimatorConfig distance_cfg;
     distance_cfg.filter_alpha = 1.0f;
+    distance_cfg.median_window_size = 1;
+    distance_cfg.stability_deadband_m = 0.0f;
+    distance_cfg.max_filtered_step_m = 10.0f;
     aim_follow::MonocularDistanceEstimator distance_estimator(distance_cfg);
 
     auto makeObs = [&](bool valid, float x, float y, float distance_m) {

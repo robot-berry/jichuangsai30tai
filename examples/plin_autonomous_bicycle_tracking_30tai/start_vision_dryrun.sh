@@ -28,6 +28,7 @@ mkfifo "$LOG_DIR/plin_stdin.fifo"
 cd "$REMOTE_DIR"
 (cat "$LOG_DIR/plin_stdin.fifo" | timeout "$RUN_SECONDS" env \
     AIM_FOLLOW_CAN_DRYRUN=1 \
+    AIM_FOLLOW_BYTETRACK_ENABLE=1 \
     AIM_FOLLOW_DISTANCE_FOCAL_PX=544 \
     AIM_FOLLOW_GIMBAL_ENABLE=0 \
     AIM_FOLLOW_CHASSIS_ENABLE=1 \

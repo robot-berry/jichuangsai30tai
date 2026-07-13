@@ -30,6 +30,7 @@
 
 // application includes
 #include "aim_follow_controller.hpp"
+#include "BYTETracker.h"
 #include "ai_example/postprocesses.hpp"
 #include "ai_example/yolov5_npu_actor.hpp"
 
@@ -65,6 +66,7 @@
 #include <cstdlib>
 #include <cstdint>
 #include <iomanip>
+#include <limits>
 #include <sstream>
 #include <cerrno>
 //加入引用
@@ -169,6 +171,13 @@ const int AIM_FOLLOW_DEFAULT_SEARCH_DIRECTION = -1;
 const float AIM_FOLLOW_SELECTOR_MAX_CENTER_JUMP_NORM = 0.25f;
 const float AIM_FOLLOW_SELECTOR_AREA_SWITCH_RATIO = 1.8f;
 const int AIM_FOLLOW_SELECTOR_MAX_LOST_FRAMES = 5;
+const bool AIM_FOLLOW_BYTETRACK_ENABLE = true;
+const int AIM_FOLLOW_BYTETRACK_FRAME_RATE = 30;
+const int AIM_FOLLOW_BYTETRACK_BUFFER_FRAMES = 30;
+const int AIM_FOLLOW_BYTETRACK_SWITCH_DELAY_FRAMES = 3;
+const float AIM_FOLLOW_BYTETRACK_TRACK_THRESH = 0.30f;
+const float AIM_FOLLOW_BYTETRACK_HIGH_THRESH = 0.45f;
+const float AIM_FOLLOW_BYTETRACK_MATCH_THRESH = 0.80f;
 const float DISTANCE_TARGET_REAL_WIDTH_M = 0.24f;
 // This focal length was calibrated in YOLO model coordinates (640 px wide),
 // not the 1920 px HDMI display coordinates.
@@ -687,6 +696,24 @@ int main(int argc, char *argv[])
         get_env_float("AIM_FOLLOW_DISTANCE_STABILITY_DEADBAND_M", DISTANCE_STABILITY_DEADBAND_M, 0.0f, 0.5f);
     const float distance_max_filtered_step_m =
         get_env_float("AIM_FOLLOW_DISTANCE_MAX_STEP_M", DISTANCE_MAX_FILTERED_STEP_M, 0.001f, 2.0f);
+    const bool aim_follow_bytetrack_enable =
+        get_env_bool("AIM_FOLLOW_BYTETRACK_ENABLE", AIM_FOLLOW_BYTETRACK_ENABLE);
+    const int aim_follow_bytetrack_frame_rate =
+        get_env_int("AIM_FOLLOW_BYTETRACK_FRAME_RATE", AIM_FOLLOW_BYTETRACK_FRAME_RATE, 1, 120);
+    const int aim_follow_bytetrack_buffer_frames =
+        get_env_int("AIM_FOLLOW_BYTETRACK_BUFFER_FRAMES", AIM_FOLLOW_BYTETRACK_BUFFER_FRAMES, 1, 300);
+    const int aim_follow_bytetrack_switch_delay_frames =
+        get_env_int("AIM_FOLLOW_BYTETRACK_SWITCH_DELAY_FRAMES",
+                    AIM_FOLLOW_BYTETRACK_SWITCH_DELAY_FRAMES, 0, 30);
+    const float aim_follow_bytetrack_track_thresh =
+        get_env_float("AIM_FOLLOW_BYTETRACK_TRACK_THRESH",
+                      AIM_FOLLOW_BYTETRACK_TRACK_THRESH, 0.1f, 0.95f);
+    const float aim_follow_bytetrack_high_thresh =
+        get_env_float("AIM_FOLLOW_BYTETRACK_HIGH_THRESH",
+                      AIM_FOLLOW_BYTETRACK_HIGH_THRESH, 0.1f, 0.99f);
+    const float aim_follow_bytetrack_match_thresh =
+        get_env_float("AIM_FOLLOW_BYTETRACK_MATCH_THRESH",
+                      AIM_FOLLOW_BYTETRACK_MATCH_THRESH, 0.1f, 1.0f);
 
     // Parse icore configuration
     Yolov5Config yolov5_cfg;
@@ -788,6 +815,15 @@ int main(int argc, char *argv[])
     selector_cfg.max_lost_frames = AIM_FOLLOW_SELECTOR_MAX_LOST_FRAMES;
     aim_follow::TargetSelector target_selector(selector_cfg);
 
+    BYTETracker bicycle_tracker(aim_follow_bytetrack_frame_rate,
+                                aim_follow_bytetrack_buffer_frames,
+                                aim_follow_bytetrack_track_thresh,
+                                aim_follow_bytetrack_high_thresh,
+                                aim_follow_bytetrack_match_thresh);
+    aim_follow::TrackedTargetSelectorConfig tracked_selector_cfg;
+    tracked_selector_cfg.max_missing_frames = aim_follow_bytetrack_switch_delay_frames;
+    aim_follow::TrackedTargetSelector tracked_target_selector(tracked_selector_cfg);
+
     aim_follow::DistanceEstimatorConfig distance_cfg;
     distance_cfg.target_real_width_m = distance_target_real_width_m;
     distance_cfg.focal_length_px = distance_camera_focal_px;
@@ -867,6 +903,9 @@ int main(int argc, char *argv[])
               << " gimbal_aux=" << aim_follow_gimbal_aux
               << " gimbal_repeat=" << aim_follow_gimbal_repeat
               << " synthetic_target=" << (is_synthetic_target_enabled() ? 1 : 0)
+              << " bytetrack=" << (aim_follow_bytetrack_enable ? 1 : 0)
+              << " bytetrack_thresh=" << aim_follow_bytetrack_track_thresh
+              << "/" << aim_follow_bytetrack_high_thresh
               << std::endl;
     std::vector<FPSCalculator> fps_calculators(CAMERA_COUNT); // 为每个流创建一个FPS计算器
 
@@ -1052,18 +1091,107 @@ int main(int argc, char *argv[])
                       << std::endl;
         }
 
-        std::vector<aim_follow::TargetCandidate> target_candidates;
-        for (int cand_idx = 0; cand_idx < static_cast<int>(display_box_list.size()); ++cand_idx) {
-            const auto &box = display_box_list[cand_idx];
-            aim_follow::TargetCandidate candidate;
-            candidate.index = cand_idx;
-            candidate.center_x = box.x + box.width * 0.5f;
-            candidate.center_y = box.y + box.height * 0.5f;
-            candidate.area = box.width * box.height;
-            candidate.score = score_list[cand_idx];
-            target_candidates.push_back(candidate);
+        bool has_control_target = false;
+        int selected_track_id = -1;
+        cv::Rect2f control_model_box;
+        cv::Rect2f control_display_box;
+
+        if (aim_follow_bytetrack_enable) {
+            std::vector<byteTracker::Object> tracker_objects;
+            tracker_objects.reserve(box_list.size());
+            for (int det_idx = 0; det_idx < static_cast<int>(box_list.size()); ++det_idx) {
+                byteTracker::Object object;
+                object.rect = box_list[det_idx];
+                object.label = bicycle_class_id;
+                object.prob = score_list[det_idx];
+                tracker_objects.push_back(object);
+            }
+
+            const auto tracks = bicycle_tracker.update(tracker_objects);
+            std::vector<aim_follow::TrackedTargetCandidate> tracked_candidates;
+            tracked_candidates.reserve(tracks.size());
+            for (int track_idx = 0; track_idx < static_cast<int>(tracks.size()); ++track_idx) {
+                const auto &track = tracks[track_idx];
+                if (track.tlwh.size() < 4 || track.tlwh[2] <= 1.0f || track.tlwh[3] <= 1.0f) {
+                    continue;
+                }
+                aim_follow::TrackedTargetCandidate candidate;
+                candidate.index = track_idx;
+                candidate.track_id = track.track_id;
+                candidate.center_x = track.tlwh[0] + track.tlwh[2] * 0.5f;
+                candidate.center_y = track.tlwh[1] + track.tlwh[3] * 0.5f;
+                candidate.area = track.tlwh[2] * track.tlwh[3];
+                candidate.score = track.score;
+                tracked_candidates.push_back(candidate);
+            }
+
+            const int selected_track_index = tracked_target_selector.select(tracked_candidates);
+            if (selected_track_index >= 0 &&
+                selected_track_index < static_cast<int>(tracks.size())) {
+                const auto &track = tracks[selected_track_index];
+                control_model_box = cv::Rect2f(
+                    track.tlwh[0], track.tlwh[1], track.tlwh[2], track.tlwh[3]);
+                control_display_box = map_box_to_display(control_model_box);
+                selected_track_id = track.track_id;
+                has_control_target = true;
+
+                float nearest_center_distance = std::numeric_limits<float>::max();
+                const float track_cx = control_model_box.x + control_model_box.width * 0.5f;
+                const float track_cy = control_model_box.y + control_model_box.height * 0.5f;
+                for (int det_idx = 0; det_idx < static_cast<int>(box_list.size()); ++det_idx) {
+                    const float det_cx = box_list[det_idx].x + box_list[det_idx].width * 0.5f;
+                    const float det_cy = box_list[det_idx].y + box_list[det_idx].height * 0.5f;
+                    const float dx = det_cx - track_cx;
+                    const float dy = det_cy - track_cy;
+                    const float distance = dx * dx + dy * dy;
+                    if (distance < nearest_center_distance) {
+                        nearest_center_distance = distance;
+                        target_index = det_idx;
+                    }
+                }
+            }
+
+            static int bytetrack_log_counter = 0;
+            static int last_logged_locked_id = -2;
+            static int last_logged_selected_id = -2;
+            static int last_logged_missing = -1;
+            ++bytetrack_log_counter;
+            const int locked_id = tracked_target_selector.lockedTrackId();
+            const int missing_frames = tracked_target_selector.missingFrames();
+            const bool track_state_changed =
+                locked_id != last_logged_locked_id ||
+                selected_track_id != last_logged_selected_id ||
+                missing_frames != last_logged_missing;
+            if (track_state_changed || bytetrack_log_counter % 30 == 0) {
+                std::cout << "[BYTETRACK] detections=" << tracker_objects.size()
+                          << " active_tracks=" << tracks.size()
+                          << " locked_id=" << locked_id
+                          << " selected_id=" << selected_track_id
+                          << " missing=" << missing_frames
+                          << std::endl;
+                last_logged_locked_id = locked_id;
+                last_logged_selected_id = selected_track_id;
+                last_logged_missing = missing_frames;
+            }
+        } else {
+            std::vector<aim_follow::TargetCandidate> target_candidates;
+            for (int cand_idx = 0; cand_idx < static_cast<int>(display_box_list.size()); ++cand_idx) {
+                const auto &box = display_box_list[cand_idx];
+                aim_follow::TargetCandidate candidate;
+                candidate.index = cand_idx;
+                candidate.center_x = box.x + box.width * 0.5f;
+                candidate.center_y = box.y + box.height * 0.5f;
+                candidate.area = box.width * box.height;
+                candidate.score = score_list[cand_idx];
+                target_candidates.push_back(candidate);
+            }
+            target_index = target_selector.select(target_candidates);
+            if (target_index >= 0 && target_index < static_cast<int>(box_list.size())) {
+                control_model_box = box_list[target_index];
+                control_display_box = display_box_list[target_index];
+                has_control_target = true;
+            }
         }
-        target_index = target_selector.select(target_candidates);
 
         float target_raw_distance_m = -1.0f;
         float target_filtered_distance_m = -1.0f;
@@ -1076,16 +1204,14 @@ int main(int argc, char *argv[])
         int control_pitch = last_pitch;
         int control_yaw = last_yaw;
 
-        if (AIM_FOLLOW_CONTROL_ENABLE &&
-            target_index >= 0 &&
-            target_index < static_cast<int>(display_box_list.size())) {
-            const auto &target_box = display_box_list[target_index];
+        if (AIM_FOLLOW_CONTROL_ENABLE && has_control_target) {
+            const auto &target_box = control_display_box;
             const float cx = target_box.x + target_box.width * 0.5f;
             const float cy = target_box.y + target_box.height * 0.5f;
             // The focal calibration is based on the detector's 640-wide model
             // space. Using the 1920-wide HDMI box here makes every distance
             // roughly three times too small.
-            const float target_model_box_width = box_list[target_index].width;
+            const float target_model_box_width = control_model_box.width;
             const auto distance = distance_estimator.update(target_model_box_width);
             target_raw_distance_m = distance.raw_distance_m;
             target_filtered_distance_m = distance.filtered_distance_m;
@@ -1208,8 +1334,11 @@ int main(int argc, char *argv[])
         const std::string distance_text = target_filtered_distance_m > 0.0f
             ? fmt::format("{:.2f}m", target_filtered_distance_m)
             : "--";
-        draw_control_text(fmt::format("Target:{}  Distance:{}  Error:{:+.2f}m",
-                                      target_state, distance_text, control_distance_error_m),
+        const std::string track_text = selected_track_id >= 0
+            ? std::to_string(selected_track_id)
+            : "--";
+        draw_control_text(fmt::format("Target:{} ID:{} Distance:{} Error:{:+.2f}m",
+                                      target_state, track_text, distance_text, control_distance_error_m),
                           0, control_target_valid ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 255, 255));
         draw_control_text(fmt::format("Gimbal tracking: pitch={} yaw={}  ex={:+.2f} ey={:+.2f}",
                                       control_pitch, control_yaw, control_ex, control_ey),
@@ -1224,6 +1353,19 @@ int main(int argc, char *argv[])
                                       aim_follow_gimbal_enable ? "ON" : "OFF",
                                       aim_follow_chassis_enable ? "ON" : "OFF"),
                           3, is_can_dry_run_enabled() ? cv::Scalar(0, 255, 255) : cv::Scalar(0, 0, 255));
+
+        if (aim_follow_bytetrack_enable && has_control_target) {
+            cv::rectangle(cvmat_to_draw, control_display_box,
+                          cv::Scalar(0, 255, 0), 4, cv::LINE_AA);
+            const cv::Point track_origin(
+                static_cast<int>(control_display_box.x),
+                std::max(28, static_cast<int>(control_display_box.y) - 8));
+            const std::string track_label = fmt::format("ByteTrack ID:{}", selected_track_id);
+            cv::putText(cvmat_to_draw, track_label, track_origin,
+                        cv::FONT_HERSHEY_DUPLEX, 0.9, cv::Scalar(0, 0, 0), 4, cv::LINE_AA);
+            cv::putText(cvmat_to_draw, track_label, track_origin,
+                        cv::FONT_HERSHEY_DUPLEX, 0.9, cv::Scalar(0, 255, 0), 2, cv::LINE_AA);
+        }
 
         if (false && target_index >= 0) {
             float x1, y1, w, h;

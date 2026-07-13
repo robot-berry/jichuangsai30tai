@@ -158,6 +158,11 @@ foreach(TARGET_NAME ${TARGET_NAMES})
 		set(APP_SOURCES_${TARGET_NAME}
 			src/${TARGET_NAME}.cpp
 			aim_follow_control/src/aim_follow_controller.cpp
+			bytetrack/src/BYTETracker.cpp
+			bytetrack/src/kalmanFilter.cpp
+			bytetrack/src/lapjv.cpp
+			bytetrack/src/STrack.cpp
+			bytetrack/src/utils.cpp
 			# Add common source files here if needed
 		)
 
@@ -168,6 +173,7 @@ foreach(TARGET_NAME ${TARGET_NAMES})
 									${DEPS_DIR}/modelzoo_utils/include
 									${CMAKE_CURRENT_SOURCE_DIR}/include
 									${CMAKE_CURRENT_SOURCE_DIR}/aim_follow_control/include
+									${CMAKE_CURRENT_SOURCE_DIR}/bytetrack/include
 									${THIRDPARTY_INCLUDES}
 									)
 
