@@ -12,6 +12,7 @@ It is not a copy of the original PLin + SingleNet + HDMI demo project. Instead, 
 - reusable distance-estimation and filtering module
 - DetPost/DetPostZG reference model files for operator learning
 - complete integrated PLin example project for rebuilding on another computer
+- ByteTrack Icraft example project for multi-object tracking learning and later 30TAI adaptation
 - full compressed 30TAI/FPAI `deps` package for SDK headers and third-party libraries
 - 30TAI build, smoke-test, and log-analysis workflow
 
@@ -56,6 +57,13 @@ examples/
     imodel/ZG/yolov5s_plin_352x640_ZG.json
     imodel/ZG/yolov5s_plin_352x640_ZG.raw
     names/coco.names
+  bytetrack_icraft/
+    README.md
+    1_scripts/
+    2_compile/
+    3_deploy/
+    weights/
+    yolox/
 
 third_party/
   modelzoo_utils/
@@ -165,6 +173,16 @@ compile_target: @fpgat
 ```
 
 See `docs/DETPOST_OPERATOR_LEARNING_NOTES_CN.md` for the Chinese learning notes. The current board may still need a matching DetPostZG bitstream; otherwise the runtime can report `No DetPost HardWare`.
+
+## ByteTrack Icraft example
+
+The repository includes the ByteTrack Icraft example project from `G:\UESTC\uav\bytetrack.zip`:
+
+```text
+examples/bytetrack_icraft/
+```
+
+The uploaded copy excludes the nested `.git/` history from the zip package, but keeps the source code, compile configs, deploy example, sample assets, `bytetrack_s_608x1088_traced.pt`, and `bytetrack_s_mot17.pth.tar`. This directory is intended as a learning/reference project for ByteTrack multi-object tracking and possible later 30TAI adaptation; it is not yet merged into the current YOLOv5 HDMI control pipeline.
 
 ## modelzoo_utils learning package
 

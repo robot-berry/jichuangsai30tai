@@ -1,0 +1,65 @@
+﻿bytetrack:
+  bytetrack:
+
+    style: cv-mot
+
+    status:
+      speed: ok
+      metrics: ok
+
+    contributor: ylm
+    reviewer: none
+
+    model_source:
+      code: https://github.com/ifzhang/ByteTrack.git
+      branch: main
+      commit_id: d1bf019
+      weights: ["https://drive.google.com/file/d/1uSmhXzyV1Zvb4TJJCzpsZOIcw7CCJLxj/view",]
+
+    deploy_cmd: [./bytetrack_psin ../cfg/bytetrack_psin_BY_int8_demo.yaml]
+    
+    fpga_op: ['imagemake', 'detpost', 'hardnms']
+
+    input_shape: [[1,3,608,1088],]
+
+    time:
+      BY:
+        int8: 13.52335ms
+        int16: 
+        mix:  14.269789 ms
+      ZG:
+        int8: 
+        bf16: 
+        fp16: 
+        tf16: 
+        mix: 
+
+    posttime:
+      BY:
+        int8: 0.92957ms
+        int16: 
+        mix: 0.93428 ms
+      ZG:
+        int8: 
+        bf16: 
+        fp16: 
+        tf16: 
+        mix: 
+
+    test_cmd: [./bytetrack_psin_test ../cfg/bytetrack_test.yaml]
+    dataset: [MOT17, "https://motchallenge.net/data/MOT17/"]
+   
+    metrics:
+      float:
+        MOTA: 79.2
+        IDF1: 74.2
+      BY:
+        int8: [kld-pt, {MOTA: 78.0, IDF1: 72.7}]
+        int16: 
+        mix: [kld-pt, {MOTA: 78.5, IDF1: 74.3}]
+      ZG:
+        int8: []
+        bf16: []
+        fp16: 
+        tf16: 
+        mix: 

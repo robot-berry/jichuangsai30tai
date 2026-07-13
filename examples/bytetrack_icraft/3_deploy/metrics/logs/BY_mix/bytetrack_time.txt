@@ -1,0 +1,37 @@
+op_id: 776, op_type: icraft::xir::HardOpNode, op_name: , total_time: 0.09168, memcpy_time: 0, hard_time: 0.05443499982357025, other_time: 0.037245000176429746
+op_id: 775, op_type: icraft::xir::HardOpNode, op_name: , total_time: 0.10502, memcpy_time: 0, hard_time: 0.07440999895334244, other_time: 0.030610001046657564
+op_id: 644, op_type: icraft::xir::CastNode, op_name: , total_time: 0.0712, memcpy_time: 0, hard_time: 0.03223, other_time: 0.03897
+op_id: 773, op_type: icraft::xir::HardOpNode, op_name: , total_time: 0.11307, memcpy_time: 0, hard_time: 0.07990500330924988, other_time: 0.033164996690750126
+op_id: 772, op_type: icraft::xir::HardOpNode, op_name: , total_time: 0.22891, memcpy_time: 0, hard_time: 0.19167999923229218, other_time: 0.03723000076770783
+op_id: 651, op_type: icraft::xir::CastNode, op_name: , total_time: 0.06975, memcpy_time: 0, hard_time: 0.03236, other_time: 0.03739000000000001
+op_id: 767, op_type: icraft::xir::HardOpNode, op_name: , total_time: 0.60603, memcpy_time: 0, hard_time: 0.5696600079536438, other_time: 0.03636999204635616
+op_id: 262, op_type: icraft::xir::OutputNode, op_name: , total_time: 0, memcpy_time: 0, hard_time: 0, other_time: 0
+op_id: 465, op_type: customop::DetPostNode, op_name: , total_time: 0.93428, memcpy_time: 0, hard_time: 1.5000000000000002e-05, other_time: 0.934265
+op_id: 1, op_type: icraft::xir::ResizeNode, op_name: , total_time: 0.04718, memcpy_time: 0, hard_time: 0, other_time: 0.04718
+op_id: 0, op_type: icraft::xir::InputNode, op_name: , total_time: 9.84784, memcpy_time: 0, hard_time: 0, other_time: 9.84784
+op_id: 464, op_type: customop::ImageMakeNode, op_name: , total_time: 0.12883, memcpy_time: 0, hard_time: 5.75477, other_time: -5.62594
+op_id: 620, op_type: icraft::xir::CastNode, op_name: , total_time: 0.53603, memcpy_time: 0, hard_time: 0.47866, other_time: 0.05737000000000003
+op_id: 766, op_type: icraft::xir::HardOpNode, op_name: , total_time: 12.48146, memcpy_time: 0, hard_time: 12.40625, other_time: 0.07521000000000022
+op_id: 768, op_type: icraft::xir::HardOpNode, op_name: , total_time: 0.31778, memcpy_time: 0, hard_time: 0.28483501076698303, other_time: 0.032944989233016975
+op_id: 623, op_type: icraft::xir::CastNode, op_name: , total_time: 0.50782, memcpy_time: 0, hard_time: 0.46912, other_time: 0.03870000000000007
+op_id: 636, op_type: icraft::xir::CastNode, op_name: , total_time: 0.15525, memcpy_time: 0, hard_time: 0.11774, other_time: 0.03751
+op_id: 769, op_type: icraft::xir::HardOpNode, op_name: , total_time: 0.18695, memcpy_time: 0, hard_time: 0.15351499617099762, other_time: 0.033435003829002385
+op_id: 774, op_type: icraft::xir::HardOpNode, op_name: , total_time: 0.103, memcpy_time: 0, hard_time: 0.07257500290870667, other_time: 0.03042499709129333
+op_id: 629, op_type: icraft::xir::CastNode, op_name: , total_time: 0.15527, memcpy_time: 0, hard_time: 0.11704, other_time: 0.038229999999999986
+op_id: 770, op_type: icraft::xir::HardOpNode, op_name: , total_time: 0.23309, memcpy_time: 0, hard_time: 0.20216499269008636, other_time: 0.030925007309913627
+op_id: 771, op_type: icraft::xir::HardOpNode, op_name: , total_time: 0.21081, memcpy_time: 0, hard_time: 0.18036000430583954, other_time: 0.03044999569416046
+************************************
+Total_TotalTime: 27.13125, Total_MemcpyTime: 0, Total_HardTime: 21.271729, Total_OtherTime: 5.859525
+Hardop_Total_Time: 14.677799 ms, Hardop_Hard_Time : 14.269789 ms.
+Customop: DetPost,TotalTime: 0.93428 ms, HardTime : 1.5e-05 ms.
+Customop: ImageMake,TotalTime: 0.12883 ms, HardTime : 5.75477 ms.
+******************************************************
+统计分析结果如下(The analysis results are as follows):
+数据传入耗时(Data input time consumption):
+Time(ms):5.75477     Device:ImageMake
+icore[npu]耗时(Icore [npu] time-consuming):
+Time(ms):14.6778     Device:Null
+数据传出耗时(Data output time consumption):
+Time(ms):0.93428     Device:DetPost
+cpu算子耗时(CPU operator time consumption):
+Time(ms):11.3903     Device:Null

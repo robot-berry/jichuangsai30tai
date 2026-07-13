@@ -1,0 +1,48 @@
+
+  # stage:
+  # "p": "parsed",
+  # "o": "optimized",
+  # "q": "quantized",
+  # "a": "adapted",
+  # "g": "BY/ZG",
+  # run_backend: buyi/zg330/host
+imodel: 
+  cudamode: false  
+  mmuMode: true
+  speedmode: false
+  compressFtmp: false
+  ocm_option: -1
+  dir: ../imodel/BY/8
+  stage: g
+  run_backend: buyi
+  ip: 192.168.125.185
+  save: false
+  show: true
+  dump_output: false
+  dump_format: SFB
+  log_path: ../io/output/ftmp
+
+
+dataset:
+  img_dir: ../io/input
+  img_list: ../io/list.txt
+  video_dir: ../io/MOT/val_videos/
+  video_list: ../io/MOT/val_videos_list.txt
+  names: ../names/mot17-08.names
+  res: ../io/output
+  
+
+
+param:
+  conf: 0.01
+  iou_thresh: 0.7
+  multilabel: true #false
+  number_of_class: 1
+  number_of_head: 3
+  anchors: []
+  fpga_nms: true
+
+camera:
+  do: true
+  camerah: 1080
+  cameraw: 1920

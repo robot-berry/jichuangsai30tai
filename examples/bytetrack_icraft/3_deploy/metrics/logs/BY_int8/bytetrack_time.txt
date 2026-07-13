@@ -1,0 +1,21 @@
+op_id: 262, op_type: icraft::xir::OutputNode, op_name: , total_time: 0, memcpy_time: 0, hard_time: 0, other_time: 0
+op_id: 459, op_type: customop::DetPostNode, op_name: , total_time: 0.92957, memcpy_time: 0, hard_time: 1.5000000000000002e-05, other_time: 0.929555
+op_id: 458, op_type: customop::ImageMakeNode, op_name: , total_time: 0.12852, memcpy_time: 0, hard_time: 5.62121, other_time: -5.49269
+op_id: 1, op_type: icraft::xir::ResizeNode, op_name: , total_time: 0.04898, memcpy_time: 0, hard_time: 0, other_time: 0.04898
+op_id: 754, op_type: icraft::xir::HardOpNode, op_name: , total_time: 13.60874, memcpy_time: 0, hard_time: 13.52334976196289, other_time: 0.08539023803710855
+op_id: 0, op_type: icraft::xir::InputNode, op_name: , total_time: 9.85875, memcpy_time: 0, hard_time: 0, other_time: 9.85875
+************************************
+Total_TotalTime: 24.57456, Total_MemcpyTime: 0, Total_HardTime: 19.144575, Total_OtherTime: 5.429985
+Hardop_Total_Time: 13.60874 ms, Hardop_Hard_Time : 13.52335 ms.
+Customop: DetPost,TotalTime: 0.92957 ms, HardTime : 1.5e-05 ms.
+Customop: ImageMake,TotalTime: 0.12852 ms, HardTime : 5.62121 ms.
+******************************************************
+统计分析结果如下(The analysis results are as follows):
+数据传入耗时(Data input time consumption):
+Time(ms):5.62121     Device:ImageMake
+icore[npu]耗时(Icore [npu] time-consuming):
+Time(ms):13.6087     Device:Null
+数据传出耗时(Data output time consumption):
+Time(ms):0.92957     Device:DetPost
+cpu算子耗时(CPU operator time consumption):
+Time(ms):9.90773     Device:Null

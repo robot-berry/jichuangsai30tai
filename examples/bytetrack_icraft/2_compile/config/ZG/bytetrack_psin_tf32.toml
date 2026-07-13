@@ -1,0 +1,55 @@
+[parse]
+net_name = "bytetrack"
+framework = "pytorch"
+inputs = [ 1, 608, 1088, 3]
+inputs_layout = "NHWC"
+inputs_dtype = "UINT8"
+pre_method = "resize"
+pre_scale = [58.395, 57.12, 57.375]
+pre_mean = [ 123.675, 116.28, 103.53]
+channel_swap = [0,1,2]
+network = "fmodel/bytetrack_s_608x1088_traced.pt"
+jr_path = "../3_deploy/imodel/ZG/tf32/"
+frame_version = "1.9"
+target = "zhuge"
+
+[optimize]
+target = "zhuge"
+json = "../3_deploy/imodel/ZG/tf32/bytetrack_parsed.json"
+raw = "../3_deploy/imodel/ZG/tf32/bytetrack_parsed.raw"
+jr_path = "../3_deploy/imodel/ZG/tf32/"
+
+[quantize]
+forward_mode = "image"
+saturation = "kld"
+forward_dir = "./qtset/mot17-08"
+forward_list = "./qtset/mot17-08.txt"
+qdtype = "tf32"
+json = "../3_deploy/imodel/ZG/tf32/bytetrack_optimized.json"
+raw = "../3_deploy/imodel/ZG/tf32/bytetrack_optimized.raw"
+jr_path = "../3_deploy/imodel/ZG/tf32/"
+per = "tensor"
+target = "zhuge"
+
+[adapt]
+target = "zhuge"
+json = "../3_deploy/imodel/ZG/tf32/bytetrack_quantized.json"
+raw = "../3_deploy/imodel/ZG/tf32/bytetrack_quantized.raw"
+jr_path = "../3_deploy/imodel/ZG/tf32/"
+pass_on = "customop.DetPostZGPass"
+custom_config = "config/customop/bytetrack.toml"
+
+[generate]
+json = "../3_deploy/imodel/ZG/tf32/bytetrack_adapted.json"
+raw = "../3_deploy/imodel/ZG/tf32/bytetrack_adapted.raw"
+jr_path = "../3_deploy/imodel/ZG/tf32/"
+log_path = "./logs/"
+
+[run]
+log_time = true
+log_io = true
+dump_format = "SFB"
+json = "../3_deploy/imodel/ZG/tf32/bytetrack_ZG.json"
+raw = "../3_deploy/imodel/ZG/tf32/bytetrack_ZG.raw"
+input = "./qtset/mot17-08/000001.jpg"
+log_path = "./logs/"

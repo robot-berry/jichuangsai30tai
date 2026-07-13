@@ -1,0 +1,46 @@
+
+  # stage:
+  # "p": "parsed",
+  # "o": "optimized",
+  # "q": "quantized",
+  # "a": "adapted",
+  # "g": "BY/ZG",
+  # run_backend: buyi/zg330/host
+imodel: 
+  cudamode: false  
+  mmuMode: true
+  speedmode: false
+  compressFtmp: false
+  ocm_option: -1
+  dir: ../imodel/BY/mix
+  stage: g
+  run_backend: buyi
+  ip: 192.168.125.185
+  save: true
+  show: false
+  dump_output: false
+  dump_format: SFB
+  log_path: ../io/output/ftmp
+
+
+dataset:
+  dir: ../io/input/train/
+  list: ../io/val_list.txt
+
+  names: ../names/mot17-08.names
+  res: ../io/metric_BY_mix/
+  
+
+param:
+  conf: 0.01
+  iou_thresh: 0.7
+  multilabel: true
+  number_of_class: 1
+  number_of_head: 3
+  anchors: []
+  fpga_nms: false
+
+camera:
+  do: true
+  camerah: 1080
+  cameraw: 1920
