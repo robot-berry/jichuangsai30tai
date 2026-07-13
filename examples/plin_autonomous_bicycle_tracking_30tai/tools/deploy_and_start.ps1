@@ -42,6 +42,7 @@ $Required = @(
     "imodel\ZG\yolov5s_plin_352x640_ZG.raw",
     "names\coco.names",
     "run_30tai_3331.sh",
+    "start_laser_aim_test.sh",
     "start_vision_dryrun.sh",
     "start_tracking_test.sh",
     "stop_all.sh",

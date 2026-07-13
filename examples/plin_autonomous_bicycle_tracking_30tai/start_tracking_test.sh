@@ -5,16 +5,32 @@ if [ "${ARM_REAL_CAN:-NO}" != "YES" ]; then
     echo "[SAFETY] Set ARM_REAL_CAN=YES only after the vehicle is lifted or the area is clear." >&2
     exit 2
 fi
+if [ "${AREA_CLEAR:-NO}" != "YES" ]; then
+    echo "[SAFETY] Set AREA_CLEAR=YES only after checking the complete movement area." >&2
+    exit 2
+fi
 
 REMOTE_DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
 LOG_DIR="$REMOTE_DIR/logs"
 CONFIG="$REMOTE_DIR/configs/ZG/sdicamera+yolov5+hdmi_runtime.yaml"
 RUN_SECONDS="${RUN_SECONDS:-120}"
+ENABLE_CHASSIS="${ENABLE_CHASSIS:-1}"
 ENABLE_GIMBAL="${ENABLE_GIMBAL:-0}"
 ENABLE_LASER="${ENABLE_LASER:-0}"
 
+case "$ENABLE_CHASSIS:$ENABLE_GIMBAL:$ENABLE_LASER" in
+    [01]:[01]:[01]) ;;
+    *)
+        echo "[SAFETY] ENABLE_CHASSIS, ENABLE_GIMBAL and ENABLE_LASER must be 0 or 1." >&2
+        exit 2
+        ;;
+esac
 if [ "$ENABLE_LASER" = "1" ] && [ "$ENABLE_GIMBAL" != "1" ]; then
     echo "[SAFETY] ENABLE_LASER=1 requires ENABLE_GIMBAL=1." >&2
+    exit 2
+fi
+if [ "$ENABLE_LASER" = "1" ] && [ "${IR_READY:-NO}" != "YES" ]; then
+    echo "[SAFETY] ENABLE_LASER=1 requires IR_READY=YES after the emitter is on." >&2
     exit 2
 fi
 
@@ -36,13 +52,13 @@ cd "$REMOTE_DIR"
     AIM_FOLLOW_DISTANCE_FOCAL_PX=544 \
     AIM_FOLLOW_GIMBAL_ENABLE="$ENABLE_GIMBAL" \
     AIM_FOLLOW_GIMBAL_REPEAT=1 \
-    AIM_FOLLOW_CHASSIS_ENABLE=1 \
+    AIM_FOLLOW_CHASSIS_ENABLE="$ENABLE_CHASSIS" \
     AIM_FOLLOW_DISTANCE_ENABLE=1 \
     AIM_FOLLOW_TARGET_DISTANCE_M=1.0 \
     AIM_FOLLOW_DISTANCE_DEADBAND_M=0.05 \
     AIM_FOLLOW_MIN_FOLLOW_RPM=35 \
     AIM_FOLLOW_MAX_FOLLOW_RPM=35 \
-    AIM_FOLLOW_CHASSIS_STEER_ENABLE=1 \
+    AIM_FOLLOW_CHASSIS_STEER_ENABLE="$ENABLE_CHASSIS" \
     AIM_FOLLOW_STEER_DEADZONE_NORM=0.08 \
     AIM_FOLLOW_STEER_KP_RPM=45 \
     AIM_FOLLOW_MIN_STEER_RPM=35 \
@@ -94,4 +110,4 @@ if ! kill -0 "$APP_PID" 2>/dev/null; then
     exit 1
 fi
 
-echo "[TRACKING READY] pid=$APP_PID duration=${RUN_SECONDS}s gimbal=$ENABLE_GIMBAL laser=$ENABLE_LASER"
+echo "[TRACKING READY] pid=$APP_PID duration=${RUN_SECONDS}s chassis=$ENABLE_CHASSIS gimbal=$ENABLE_GIMBAL laser=$ENABLE_LASER"

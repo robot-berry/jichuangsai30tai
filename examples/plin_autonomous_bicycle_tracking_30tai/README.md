@@ -56,6 +56,7 @@ tools/deploy_and_start.ps1    一键部署、启动和打开预览
 tools/stop_all.ps1            一键归零并停止全部进程
 tools/safe_*.py               CAN 唯一写入与安全桥接
 start_vision_dryrun.sh        板端检测进程启动脚本
+start_laser_aim_test.sh       底盘锁止的云台红外瞄准测试脚本
 start_tracking_test.sh         带显式解锁、限速和自动归零的实车测试脚本
 build_30tai.sh                3.33.1 低内存编译脚本
 build_cross_3331.sh           电脑端 3.33.1 aarch64 交叉编译脚本
@@ -159,17 +160,26 @@ powershell -ExecutionPolicy Bypass -File .\tools\stop_all.ps1 `
 ./start_vision_dryrun.sh
 ```
 
-场地清空、遥控器关闭并确认只有一个 CAN 写入器后，第一阶段只启用小车低速追踪，云台保持关闭：
+场地清空、遥控器关闭并确认只有一个 CAN 写入器后，先把目标人工放到画面中央，打开红外，只测试云台瞄准。此阶段底盘被硬关闭：
 
 ```bash
-ARM_REAL_CAN=YES RUN_SECONDS=120 ./start_tracking_test.sh
+ARM_REAL_CAN=YES AREA_CLEAR=YES IR_READY=YES RUN_SECONDS=45 \
+./start_laser_aim_test.sh
 ```
 
-确认小车能够把锁定目标移到画面中央并稳定在约 1 米后，第二阶段启用红外瞄准。云台只在小车电机命令为 `0/0` 且目标连续居中后启动：
+确认日志依次出现 `COARSE_SEARCH`、`FINE_AIM`、`LOCKED`，并观察到粗搜只上下移动、找到光点后才双轴微调。随后第二阶段只启用小车低速追踪，云台保持关闭：
 
 ```bash
-ARM_REAL_CAN=YES RUN_SECONDS=120 \
-ENABLE_GIMBAL=1 ENABLE_LASER=1 \
+ARM_REAL_CAN=YES AREA_CLEAR=YES RUN_SECONDS=120 \
+ENABLE_CHASSIS=1 ENABLE_GIMBAL=0 ENABLE_LASER=0 \
+./start_tracking_test.sh
+```
+
+确认小车能够把锁定目标移到画面中央并稳定在约 1 米后，第三阶段联调底盘和红外瞄准。云台只在小车电机命令为 `0/0` 且目标连续居中后启动：
+
+```bash
+ARM_REAL_CAN=YES AREA_CLEAR=YES IR_READY=YES RUN_SECONDS=120 \
+ENABLE_CHASSIS=1 ENABLE_GIMBAL=1 ENABLE_LASER=1 \
 ./start_tracking_test.sh
 ```
 
