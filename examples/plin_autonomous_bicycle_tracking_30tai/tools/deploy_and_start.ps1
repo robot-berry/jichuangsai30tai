@@ -4,6 +4,13 @@ param(
     [string]$BoardPassword = "",
     [string]$RemoteDir = "/home/fmsh/plin_pHdmi/examples/codex/plin_autonomous_bicycle_tracking",
     [int]$PreviewPort = 8765,
+    [double]$IrGain = 4.0,
+    [int]$IrRedMin = 180,
+    [int]$IrRedDominance = 50,
+    [int]$IrReflectionMax = 200,
+    [int]$IrLocalContrast = 8,
+    [string]$IrReference = "",
+    [switch]$ArmChassis,
     [switch]$NoOpenBrowser
 )
 
@@ -36,6 +43,7 @@ $Required = @(
     "names\coco.names",
     "run_30tai_3331.sh",
     "start_vision_dryrun.sh",
+    "start_tracking_test.sh",
     "stop_all.sh",
     "tools\safe_can_control_session.py",
     "tools\safe_can_control_client.py",
@@ -91,23 +99,36 @@ try {
     & scp @SshArgs $Archive "${Target}:$RemoteArchive"
     if ($LASTEXITCODE -ne 0) { throw "Board upload failed." }
 
-    $RemoteStart = "tar -xzf '$RemoteArchive' -C '$RemoteDir'; chmod 755 '$RemoteDir/build/ZG/sdicamera+yolov5+hdmi' '$RemoteDir'/*.sh '$RemoteDir'/tools/*.sh '$RemoteDir'/tools/*.py; '$RemoteDir/start_vision_dryrun.sh'; sleep 8; REMOTE_DIR='$RemoteDir' '$RemoteDir/tools/start_autonomous_tracking.sh'"
+    $RemoteStart = "tar -xzf '$RemoteArchive' -C '$RemoteDir'; chmod 755 '$RemoteDir/build/ZG/sdicamera+yolov5+hdmi' '$RemoteDir'/*.sh '$RemoteDir'/tools/*.sh '$RemoteDir'/tools/*.py; '$RemoteDir/start_vision_dryrun.sh'"
+    if ($ArmChassis) {
+        $RemoteStart += "; sleep 8; REMOTE_DIR='$RemoteDir' '$RemoteDir/tools/start_autonomous_tracking.sh'"
+    }
     & ssh @SshArgs $Target $RemoteStart
     if ($LASTEXITCODE -ne 0) { throw "Board runtime failed to start." }
 
     New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
     $PreviewStdout = Join-Path $ProjectDir "runtime\preview_stdout.log"
     $PreviewStderr = Join-Path $ProjectDir "runtime\preview_stderr.log"
+    $PreviewArgs = @(
+        (Join-Path $ProjectDir "tools\preview_plin_network_frames.py"),
+        "--target", $Target,
+        "--remote-dir", $RemoteDir,
+        "--out-dir", $OutDir,
+        "--seconds", "7200",
+        "--interval", "0.6",
+        "--preview-width", "960",
+        "--ir-gain", "$IrGain",
+        "--ir-red-min", "$IrRedMin",
+        "--ir-red-dominance", "$IrRedDominance",
+        "--ir-reflection-max", "$IrReflectionMax",
+        "--ir-local-contrast", "$IrLocalContrast"
+    )
+    if (-not [string]::IsNullOrWhiteSpace($IrReference)) {
+        $ResolvedIrReference = (Resolve-Path $IrReference).Path
+        $PreviewArgs += @("--ir-reference", $ResolvedIrReference)
+    }
     Start-Process -FilePath $Python `
-        -ArgumentList @(
-            (Join-Path $ProjectDir "tools\preview_plin_network_frames.py"),
-            "--target", $Target,
-            "--remote-dir", $RemoteDir,
-            "--out-dir", $OutDir,
-            "--seconds", "7200",
-            "--interval", "0.6",
-            "--preview-width", "960"
-        ) `
+        -ArgumentList $PreviewArgs `
         -WorkingDirectory $ProjectDir `
         -WindowStyle Hidden `
         -RedirectStandardOutput $PreviewStdout `
@@ -124,7 +145,11 @@ try {
     $PreviewUrl = "http://127.0.0.1:$PreviewPort/live_preview.html"
     Start-Sleep -Seconds 2
     if (-not $NoOpenBrowser) { Start-Process $PreviewUrl }
-    Write-Host "Autonomous tracking is running." -ForegroundColor Green
+    if ($ArmChassis) {
+        Write-Host "Chassis tracking is armed." -ForegroundColor Yellow
+    } else {
+        Write-Host "Safe preview is running; chassis and gimbal remain disarmed." -ForegroundColor Green
+    }
     Write-Host "Board path: $RemoteDir"
     Write-Host "Preview: $PreviewUrl" -ForegroundColor Green
 } finally {
