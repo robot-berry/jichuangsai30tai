@@ -33,5 +33,10 @@ if [ -n "$SAFE_PID" ] && kill -0 "$SAFE_PID" 2>/dev/null; then
     done
 fi
 
+if command -v cansend >/dev/null 2>&1; then
+    cansend can0 201#0000000064640001 >/dev/null 2>&1 || true
+    sleep 0.05
+    cansend can0 201#0000000064640000 >/dev/null 2>&1 || true
+fi
 ip link set can0 down 2>/dev/null || true
 echo "[STOPPED] vision=off tracking=off motors=0/0 can0=down"

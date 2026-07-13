@@ -527,6 +527,7 @@ void AimFollowController::reset() {
     lost_frames_ = 0;
     last_target_side_ = 0;
     search_direction_ = cfg_.default_search_direction < 0 ? -1 : 1;
+    distance_hold_active_ = false;
     last_yaw_ = cfg_.center_yaw;
     last_pitch_ = cfg_.center_pitch;
 }
@@ -549,6 +550,10 @@ ControlOutput AimFollowController::update(const TargetObservation &obs) {
         ++lost_frames_;
         has_last_error_ = false;
         out.target_valid = false;
+
+        if (lost_frames_ > cfg_.lost_hold_frames) {
+            distance_hold_active_ = false;
+        }
 
         if (lost_frames_ >= cfg_.lost_hold_frames) {
             out.yaw = stepLimit(last_yaw_, cfg_.center_yaw);
@@ -699,7 +704,7 @@ int AimFollowController::calcAxisCommand(float error,
     return clampInt(stepLimit(previous, desired), lo, hi);
 }
 
-int AimFollowController::calcFollowRpm(float distance_m, float *distance_error_out) const {
+int AimFollowController::calcFollowRpm(float distance_m, float *distance_error_out) {
     if (distance_error_out) {
         *distance_error_out = 0.0f;
     }
@@ -711,7 +716,18 @@ int AimFollowController::calcFollowRpm(float distance_m, float *distance_error_o
     if (distance_error_out) {
         *distance_error_out = error;
     }
-    if (std::fabs(error) <= cfg_.distance_deadband_m) {
+    const float stop_deadband = std::max(0.0f, cfg_.distance_deadband_m);
+    const float resume_deadband =
+        std::max(stop_deadband, cfg_.distance_resume_deadband_m);
+    const float absolute_error = std::fabs(error);
+    if (distance_hold_active_) {
+        if (absolute_error <= resume_deadband) {
+            return 0;
+        }
+        distance_hold_active_ = false;
+    }
+    if (absolute_error <= stop_deadband) {
+        distance_hold_active_ = true;
         return 0;
     }
 

@@ -265,6 +265,8 @@ int main() {
     cfg.frame_width = 1920.0f;
     cfg.frame_height = 1080.0f;
     cfg.target_distance_m = 1.0f;
+    cfg.distance_deadband_m = 0.01f;
+    cfg.distance_resume_deadband_m = 0.05f;
     cfg.motor1_forward_sign = 1;
     cfg.motor2_forward_sign = 1;
 
@@ -282,6 +284,43 @@ int main() {
     assert(hold.motor2_rpm == 0);
     assert(hold.yaw == cfg.center_yaw);
     assert(hold.pitch == cfg.center_pitch);
+
+    aim_follow::AimFollowController hysteresis_controller(cfg);
+    const auto hysteresis_enter = hysteresis_controller.update(centered);
+    assert(hysteresis_enter.motor1_rpm == 0);
+    aim_follow::TargetObservation within_resume = centered;
+    within_resume.distance_m = 1.03f;
+    within_resume.timestamp_s = 0.10f;
+    const auto hysteresis_hold = hysteresis_controller.update(within_resume);
+    assert(hysteresis_hold.motor1_rpm == 0);
+    aim_follow::TargetObservation brief_dropout;
+    brief_dropout.valid = false;
+    brief_dropout.timestamp_s = 0.12f;
+    const auto dropout_stop = hysteresis_controller.update(brief_dropout);
+    assert(dropout_stop.motor1_rpm == 0);
+    within_resume.timestamp_s = 0.14f;
+    const auto reacquired_hold = hysteresis_controller.update(within_resume);
+    assert(reacquired_hold.motor1_rpm == 0);
+    aim_follow::TargetObservation beyond_resume = centered;
+    beyond_resume.distance_m = 1.051f;
+    beyond_resume.timestamp_s = 0.15f;
+    const auto hysteresis_forward = hysteresis_controller.update(beyond_resume);
+    assert(hysteresis_forward.motor1_rpm > 0);
+    aim_follow::TargetObservation reenter = centered;
+    reenter.distance_m = 1.009f;
+    reenter.timestamp_s = 0.20f;
+    const auto hysteresis_reenter = hysteresis_controller.update(reenter);
+    assert(hysteresis_reenter.motor1_rpm == 0);
+    aim_follow::TargetObservation within_reverse_resume = centered;
+    within_reverse_resume.distance_m = 0.951f;
+    within_reverse_resume.timestamp_s = 0.25f;
+    const auto hysteresis_reverse_hold = hysteresis_controller.update(within_reverse_resume);
+    assert(hysteresis_reverse_hold.motor1_rpm == 0);
+    aim_follow::TargetObservation beyond_reverse_resume = centered;
+    beyond_reverse_resume.distance_m = 0.949f;
+    beyond_reverse_resume.timestamp_s = 0.30f;
+    const auto hysteresis_backward = hysteresis_controller.update(beyond_reverse_resume);
+    assert(hysteresis_backward.motor1_rpm < 0);
 
     aim_follow::TargetObservation far = centered;
     far.distance_m = 1.6f;

@@ -14,6 +14,16 @@ REMOTE_DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
 LOG_DIR="$REMOTE_DIR/logs"
 CONFIG="$REMOTE_DIR/configs/ZG/sdicamera+yolov5+hdmi_runtime.yaml"
 RUN_SECONDS="${RUN_SECONDS:-120}"
+WATCHDOG_DELAY=$(awk -v duration="$RUN_SECONDS" 'BEGIN {
+    if (duration !~ /^[0-9]+([.][0-9]+)?$/ || duration <= 0) exit
+    delay = duration - 1.0
+    if (delay < 0.2) delay = 0.2
+    printf "%.3f", delay
+}')
+if [ -z "$WATCHDOG_DELAY" ]; then
+    echo "[SAFETY] RUN_SECONDS must be a positive number." >&2
+    exit 2
+fi
 ENABLE_CHASSIS="${ENABLE_CHASSIS:-1}"
 ENABLE_GIMBAL="${ENABLE_GIMBAL:-0}"
 ENABLE_LASER="${ENABLE_LASER:-0}"
@@ -34,6 +44,10 @@ if [ "$ENABLE_LASER" = "1" ] && [ "${IR_READY:-NO}" != "YES" ]; then
     exit 2
 fi
 
+if [ "$ENABLE_CHASSIS" = "1" ] && [ "$ENABLE_GIMBAL" = "0" ] && [ "$ENABLE_LASER" = "0" ]; then
+    exec "$REMOTE_DIR/start_chassis_tracking_test.sh"
+fi
+
 mkdir -p "$LOG_DIR"
 "$REMOTE_DIR/stop_all.sh" >/dev/null 2>&1 || true
 cp "$REMOTE_DIR/configs/ZG/sdicamera+yolov5+hdmi.yaml" "$CONFIG"
@@ -49,13 +63,15 @@ cd "$REMOTE_DIR"
     AIM_FOLLOW_BYTETRACK_ENABLE=1 \
     AIM_FOLLOW_LASER_AIM_ENABLE="$ENABLE_LASER" \
     AIM_FOLLOW_LASER_MOTION_ENABLE=1 \
-    AIM_FOLLOW_DISTANCE_FOCAL_PX=544 \
+    AIM_FOLLOW_DISTANCE_FOCAL_PX=600 \
+    AIM_FOLLOW_DISTANCE_STABILITY_DEADBAND_M=0.01 \
     AIM_FOLLOW_GIMBAL_ENABLE="$ENABLE_GIMBAL" \
     AIM_FOLLOW_GIMBAL_REPEAT=1 \
     AIM_FOLLOW_CHASSIS_ENABLE="$ENABLE_CHASSIS" \
     AIM_FOLLOW_DISTANCE_ENABLE=1 \
     AIM_FOLLOW_TARGET_DISTANCE_M=1.0 \
-    AIM_FOLLOW_DISTANCE_DEADBAND_M=0.05 \
+    AIM_FOLLOW_DISTANCE_DEADBAND_M=0.01 \
+    AIM_FOLLOW_DISTANCE_RESUME_DEADBAND_M=0.05 \
     AIM_FOLLOW_MIN_FOLLOW_RPM=35 \
     AIM_FOLLOW_MAX_FOLLOW_RPM=35 \
     AIM_FOLLOW_CHASSIS_STEER_ENABLE="$ENABLE_CHASSIS" \
@@ -88,9 +104,7 @@ APP_PID=$!
 (
     sleep 1
     exec 9>"$LOG_DIR/plin_stdin.fifo"
-    while kill -0 "$APP_PID" 2>/dev/null; do
-        sleep 1
-    done
+    sleep "$WATCHDOG_DELAY"
     if command -v cansend >/dev/null 2>&1; then
         cansend can0 201#0000000064640001 >/dev/null 2>&1 || true
         sleep 0.05

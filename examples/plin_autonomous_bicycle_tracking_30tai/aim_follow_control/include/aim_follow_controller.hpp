@@ -121,11 +121,11 @@ struct TargetObservation {
 
 struct DistanceEstimatorConfig {
     float target_real_width_m = 0.24f;
-    float focal_length_px = 544.0f;
+    float focal_length_px = 600.0f;
     float min_box_width_px = 1.0f;
     float filter_alpha = 0.18f;
     int median_window_size = 5;
-    float stability_deadband_m = 0.03f;
+    float stability_deadband_m = 0.01f;
     float max_filtered_step_m = 0.12f;
 };
 
@@ -266,7 +266,8 @@ struct ControlConfig {
 
     // Fixed-distance following. distance_error = current_distance - target_distance.
     float target_distance_m = 1.0f;
-    float distance_deadband_m = 0.12f;
+    float distance_deadband_m = 0.01f;
+    float distance_resume_deadband_m = 0.05f;
     float follow_kp_rpm_per_m = 180.0f;
     int min_follow_rpm = 35;
     int max_follow_rpm = 160;
@@ -334,6 +335,7 @@ private:
     int lost_frames_ = 0;
     int last_target_side_ = 0;
     int search_direction_ = -1;
+    bool distance_hold_active_ = false;
     int last_yaw_;
     int last_pitch_;
 
@@ -350,7 +352,7 @@ private:
                         int lo,
                         int hi,
                         bool invert) const;
-    int calcFollowRpm(float distance_m, float *distance_error_out) const;
+    int calcFollowRpm(float distance_m, float *distance_error_out);
     int calcSteerRpm(float error_x) const;
 };
 

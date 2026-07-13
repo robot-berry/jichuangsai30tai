@@ -149,7 +149,8 @@ const bool AIM_FOLLOW_INVERT_YAW = false;
 const bool AIM_FOLLOW_INVERT_PITCH = false;
 const float AIM_FOLLOW_AIM_DEADZONE_NORM = 0.035f;
 const float AIM_FOLLOW_MAX_CMD_STEP = 8.0f;
-const float AIM_FOLLOW_DISTANCE_DEADBAND_M = 0.12f;
+const float AIM_FOLLOW_DISTANCE_DEADBAND_M = 0.01f;
+const float AIM_FOLLOW_DISTANCE_RESUME_DEADBAND_M = 0.05f;
 const float AIM_FOLLOW_FOLLOW_KP_RPM_PER_M = 180.0f;
 const int AIM_FOLLOW_MIN_FOLLOW_RPM = 35;
 const int AIM_FOLLOW_MAX_FOLLOW_RPM = 160;
@@ -203,11 +204,11 @@ const bool AIM_FOLLOW_LASER_FINE_YAW_ENABLE = true;
 const float DISTANCE_TARGET_REAL_WIDTH_M = 0.24f;
 // This focal length was calibrated in YOLO model coordinates (640 px wide),
 // not the 1920 px HDMI display coordinates.
-const float DISTANCE_CAMERA_FOCAL_PX = 544.0f;
+const float DISTANCE_CAMERA_FOCAL_PX = 600.0f;
 const float DISTANCE_MIN_BOX_WIDTH_PX = 1.0f;
 const float DISTANCE_FILTER_ALPHA = 0.18f;
 const int DISTANCE_MEDIAN_WINDOW_SIZE = 5;
-const float DISTANCE_STABILITY_DEADBAND_M = 0.03f;
+const float DISTANCE_STABILITY_DEADBAND_M = 0.01f;
 const float DISTANCE_MAX_FILTERED_STEP_M = 0.12f;
 const int TRIGGER_STOP = 0;
 const int CHASSIS_GIMBAL_NEUTRAL = 100;
@@ -1028,6 +1029,12 @@ int main(int argc, char *argv[])
         get_env_float("AIM_FOLLOW_MAX_CMD_STEP", AIM_FOLLOW_MAX_CMD_STEP, 1.0f, 50.0f);
     const float aim_follow_distance_deadband_m =
         get_env_float("AIM_FOLLOW_DISTANCE_DEADBAND_M", AIM_FOLLOW_DISTANCE_DEADBAND_M, 0.0f, 3.0f);
+    const float aim_follow_distance_resume_deadband_m = std::max(
+        aim_follow_distance_deadband_m,
+        get_env_float("AIM_FOLLOW_DISTANCE_RESUME_DEADBAND_M",
+                      AIM_FOLLOW_DISTANCE_RESUME_DEADBAND_M,
+                      0.0f,
+                      3.0f));
     const float aim_follow_follow_kp_rpm_per_m =
         get_env_float("AIM_FOLLOW_FOLLOW_KP_RPM_PER_M", AIM_FOLLOW_FOLLOW_KP_RPM_PER_M, 0.0f, 1000.0f);
     const int aim_follow_min_follow_rpm =
@@ -1236,6 +1243,7 @@ int main(int argc, char *argv[])
     control_cfg.invert_pitch = aim_follow_invert_pitch;
     control_cfg.target_distance_m = aim_follow_target_distance_m;
     control_cfg.distance_deadband_m = aim_follow_distance_deadband_m;
+    control_cfg.distance_resume_deadband_m = aim_follow_distance_resume_deadband_m;
     control_cfg.follow_kp_rpm_per_m = aim_follow_follow_kp_rpm_per_m;
     control_cfg.min_follow_rpm = aim_follow_min_follow_rpm;
     control_cfg.max_follow_rpm = aim_follow_max_follow_rpm;
@@ -1305,6 +1313,8 @@ int main(int argc, char *argv[])
               << " filter_alpha=" << distance_filter_alpha
               << " median_window=" << distance_median_window_size
               << " distance_hold_m=" << distance_stability_deadband_m
+              << " distance_stop_deadband_m=" << aim_follow_distance_deadband_m
+              << " distance_resume_deadband_m=" << aim_follow_distance_resume_deadband_m
               << " can_dryrun=" << (is_can_dry_run_enabled() ? 1 : 0)
               << " gimbal_enable=" << (aim_follow_gimbal_enable ? 1 : 0)
               << " chassis_enable=" << (aim_follow_chassis_enable ? 1 : 0)

@@ -120,6 +120,26 @@ def main():
             can_sock.bind(("can0",))
             can_sock.setblocking(False)
 
+            # The chassis can remain in remote-control mode (0x55) after the
+            # handset is switched off.  Clear that ownership first, then use
+            # zero-speed enable heartbeats to request CAN mode (0xAA).
+            for _ in range(10):
+                send_can(can_sock, zero_disabled)
+                drain_feedback(can_sock, state)
+                time.sleep(0.02)
+
+            mode_before = state["mode"]
+            print(
+                "[SESSION PREPARE] mode_before=%s; disable_frames=10; "
+                "gimbal_velocity=100/100"
+                % (
+                    "unknown"
+                    if mode_before is None
+                    else "0x%02X" % mode_before,
+                ),
+                flush=True,
+            )
+
             handshake_deadline = time.monotonic() + 2.0
             while time.monotonic() < handshake_deadline and not stop_requested:
                 send_can(can_sock, zero_enabled)

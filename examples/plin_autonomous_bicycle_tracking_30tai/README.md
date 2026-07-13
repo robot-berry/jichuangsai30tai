@@ -18,13 +18,15 @@
 - 目标可见时自动小幅转向居中
 - 连续丢失后按最后目标方向搜索，并周期性反向扫描
 - 目标重新出现后立即退出搜索并恢复小幅追踪
-- 单目距离估计、稳定滤波和 `1.00 m ± 0.05 m` 定距
+- 单目距离估计、稳定滤波，以及 `±0.01 m` 停车、超过 `±0.05 m` 才恢复的定距滞回
 - 差速控制：前进 `(+,+)`、后退 `(-,-)`、左转 `(-,+)`、右转 `(+,-)`
 - 单一 CAN 写入器、模式 `0xAA`、反馈超时归零和命令脉冲限幅
 - 底盘与云台分阶段启用并共用唯一 CAN 写入器，避免两路 CAN 命令互相干扰
 - 电脑端实时网页预览
 
 最终实车验收值：目标中心约 `x=943`（画面中心 `x=960`），滤波距离约 `1.03 m`，稳定后电机命令自动回到 `0/0`。
+
+2026-07-13 实车闭环：ByteTrack 连续保持 `locked_id=1 / selected_id=1`；目标横坐标从 `x=266` 移到中心区后转向归零。以现场 `1.40 m` 重新标定距离后，滤波距离在 `0.99296 m` 进入 `±0.01 m` 停车区；随后检测框波动使距离稳定在 `1.01424 m`，`±0.05 m` 恢复滞回保持电机命令为 `0/0`。最终目标中心约 `x=1013`，每段测试结束后 `can0` 均验证为 `DOWN`，云台、红外和丢失搜索保持关闭。
 
 ## 工作流程
 
@@ -41,7 +43,7 @@ flowchart LR
     H --> I[电脑实时预览]
 ```
 
-主程序始终使用 `AIM_FOLLOW_CAN_DRYRUN=1`，只计算控制量，不直接写 CAN。真正的 CAN 输出只经过 `safe_can_control_session.py`，因此不会出现两路 CAN 写入器互相抢占。
+默认底盘追踪路径中，主程序使用 `AIM_FOLLOW_CAN_DRYRUN=1`，只计算控制量，不直接写 CAN。真正的 CAN 输出只经过 `safe_can_control_session.py`，因此不会出现两路 CAN 写入器互相抢占。
 
 ## 目录
 
@@ -56,6 +58,7 @@ tools/deploy_and_start.ps1    一键部署、启动和打开预览
 tools/stop_all.ps1            一键归零并停止全部进程
 tools/safe_*.py               CAN 唯一写入与安全桥接
 start_vision_dryrun.sh        板端检测进程启动脚本
+start_chassis_tracking_test.sh 仅底盘、单一安全 CAN 写入器的限时闭环测试
 start_laser_aim_test.sh       底盘锁止的云台红外瞄准测试脚本
 start_tracking_test.sh         带显式解锁、限速和自动归零的实车测试脚本
 build_30tai.sh                3.33.1 低内存编译脚本
@@ -170,10 +173,12 @@ ARM_REAL_CAN=YES AREA_CLEAR=YES IR_READY=YES RUN_SECONDS=45 \
 确认日志依次出现 `COARSE_SEARCH`、`FINE_AIM`、`LOCKED`，并观察到粗搜只上下移动、找到光点后才双轴微调。随后第二阶段只启用小车低速追踪，云台保持关闭：
 
 ```bash
-ARM_REAL_CAN=YES AREA_CLEAR=YES RUN_SECONDS=120 \
+ARM_REAL_CAN=YES AREA_CLEAR=YES RUN_SECONDS=5 \
 ENABLE_CHASSIS=1 ENABLE_GIMBAL=0 ENABLE_LASER=0 \
 ./start_tracking_test.sh
 ```
+
+上述底盘命令会自动转入 `start_chassis_tracking_test.sh`：主视觉程序固定为 `CAN_DRYRUN`，仅 `safe_can_control_session.py` 写 CAN；运行时限必须在 `0–30 s` 内。目标丢失、日志超时、反馈不是 `0xAA` 或脚本退出都会归零并关闭 `can0`。
 
 确认小车能够把锁定目标移到画面中央并稳定在约 1 米后，第三阶段联调底盘和红外瞄准。云台只在小车电机命令为 `0/0` 且目标连续居中后启动：
 
@@ -184,6 +189,8 @@ ENABLE_CHASSIS=1 ENABLE_GIMBAL=1 ENABLE_LASER=1 \
 ```
 
 红外状态依次为：`WAIT_CENTER`（等待小车居中）、`COARSE_SEARCH`（水平固定 `123`，只上下扫描俯仰）、`FINE_AIM`（找到红点后同时微调水平和俯仰，每轴单次最多 `2`）、`LOCKED`（红点稳定指向目标中心）。真实测试脚本默认关闭目标丢失后的底盘搜索，测试结束后发送零速/禁用帧并关闭 `can0`。
+
+实车脚本使用独立时限看门狗，不依赖主进程退出状态；到达 `RUN_SECONDS` 后必定发送底盘 `0/0`、禁用帧并将 `can0` 置为 `DOWN`。`start_vision_dryrun.sh` 也会在启动检测前显式关闭 `can0`。
 
 ## 重新编译
 
@@ -221,12 +228,14 @@ build/ZG/sdicamera+yolov5+hdmi
 | 参数 | 值 |
 |---|---:|
 | 目标距离 | `1.00 m` |
-| 距离停止范围 | `0.95–1.05 m` |
+| 距离停车范围 | `0.99–1.01 m` |
+| 距离恢复阈值 | 偏差超过 `±0.05 m` |
 | 可见目标转速上限 | `35 rpm` |
 | 丢失搜索转速 | `40 rpm` |
 | 搜索确认延迟 | `0.35 s` |
 | 搜索换向周期 | `60` 检测帧 |
-| 距离焦距标定 | `544 px`（640 宽模型坐标） |
+| 距离焦距标定 | `600 px`（640 宽模型坐标；现场 `1.40 m` 标定） |
+| 距离稳定阈值 | `0.01 m`（抑制检测框微小抖动，同时保留真实距离变化） |
 | 目标实际宽度 | `0.24 m` |
 | CAN 波特率 | `250000` |
 | 红外粗搜 yaw | 固定 `123`（小车正前方） |
