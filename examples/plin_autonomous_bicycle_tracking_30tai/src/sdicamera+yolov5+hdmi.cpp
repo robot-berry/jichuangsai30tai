@@ -149,8 +149,8 @@ const bool AIM_FOLLOW_INVERT_YAW = false;
 const bool AIM_FOLLOW_INVERT_PITCH = false;
 const float AIM_FOLLOW_AIM_DEADZONE_NORM = 0.035f;
 const float AIM_FOLLOW_MAX_CMD_STEP = 8.0f;
-const float AIM_FOLLOW_DISTANCE_DEADBAND_M = 0.01f;
-const float AIM_FOLLOW_DISTANCE_RESUME_DEADBAND_M = 0.05f;
+const float AIM_FOLLOW_DISTANCE_DEADBAND_M = 0.03f;
+const float AIM_FOLLOW_DISTANCE_RESUME_DEADBAND_M = 0.08f;
 const float AIM_FOLLOW_FOLLOW_KP_RPM_PER_M = 180.0f;
 const int AIM_FOLLOW_MIN_FOLLOW_RPM = 35;
 const int AIM_FOLLOW_MAX_FOLLOW_RPM = 160;
@@ -1247,6 +1247,11 @@ int main(int argc, char *argv[])
     control_cfg.follow_kp_rpm_per_m = aim_follow_follow_kp_rpm_per_m;
     control_cfg.min_follow_rpm = aim_follow_min_follow_rpm;
     control_cfg.max_follow_rpm = aim_follow_max_follow_rpm;
+    const int aim_follow_combined_motor_limit = std::max(
+        aim_follow_max_follow_rpm,
+        aim_follow_max_steer_rpm);
+    control_cfg.motor_rpm_min = -aim_follow_combined_motor_limit;
+    control_cfg.motor_rpm_max = aim_follow_combined_motor_limit;
     control_cfg.motor1_forward_sign = aim_follow_motor1_forward_sign;
     control_cfg.motor2_forward_sign = aim_follow_motor2_forward_sign;
     control_cfg.distance_follow_enabled = aim_follow_distance_enable;
@@ -1321,6 +1326,7 @@ int main(int argc, char *argv[])
               << " distance_enable=" << (aim_follow_distance_enable ? 1 : 0)
               << " steer_enable=" << (aim_follow_chassis_steer_enable ? 1 : 0)
               << " steer_max_rpm=" << aim_follow_max_steer_rpm
+              << " motor_limit_rpm=" << aim_follow_combined_motor_limit
               << " steer_signs=" << aim_follow_motor1_steer_sign << "," << aim_follow_motor2_steer_sign
               << " search_enable=" << (aim_follow_search_enable ? 1 : 0)
               << " search_rpm=" << aim_follow_search_rpm

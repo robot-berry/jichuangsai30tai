@@ -625,32 +625,24 @@ ControlOutput AimFollowController::update(const TargetObservation &obs) {
 
     float distance_error = 0.0f;
     const int steer_rpm = cfg_.chassis_steer_enabled ? calcSteerRpm(error_x) : 0;
-    // Center the target before any forward/backward distance correction. This
-    // keeps the first motion predictable and prevents diagonal surges.
-    const int follow_rpm = cfg_.distance_follow_enabled && steer_rpm == 0
+    const int follow_rpm = cfg_.distance_follow_enabled
         ? calcFollowRpm(obs.distance_m, &distance_error)
         : 0;
     out.distance_valid = obs.distance_m > 0.0f && std::isfinite(obs.distance_m);
     out.distance_error_m = distance_error;
     out.forward_rpm = follow_rpm;
     out.steer_rpm = steer_rpm;
-    if (steer_rpm != 0) {
-        // Verified on the vehicle: (+,+) moves forward, (-,-) moves backward,
-        // (-,+) turns left, and (+,-) turns right.
-        out.motor1_rpm = clampInt(steer_rpm * cfg_.motor1_steer_sign,
-                                  cfg_.motor_rpm_min,
-                                  cfg_.motor_rpm_max);
-        out.motor2_rpm = clampInt(steer_rpm * cfg_.motor2_steer_sign,
-                                  cfg_.motor_rpm_min,
-                                  cfg_.motor_rpm_max);
-    } else {
-        out.motor1_rpm = clampInt(follow_rpm * cfg_.motor1_forward_sign,
-                                  cfg_.motor_rpm_min,
-                                  cfg_.motor_rpm_max);
-        out.motor2_rpm = clampInt(follow_rpm * cfg_.motor2_forward_sign,
-                                  cfg_.motor_rpm_min,
-                                  cfg_.motor_rpm_max);
-    }
+    // Verified on the vehicle: (+,+) moves forward, (-,-) moves backward,
+    // (-,+) turns left, and (+,-) turns right. Mix translation and steering
+    // so distance correction continues while the target is being centered.
+    out.motor1_rpm = clampInt(follow_rpm * cfg_.motor1_forward_sign +
+                                  steer_rpm * cfg_.motor1_steer_sign,
+                              cfg_.motor_rpm_min,
+                              cfg_.motor_rpm_max);
+    out.motor2_rpm = clampInt(follow_rpm * cfg_.motor2_forward_sign +
+                                  steer_rpm * cfg_.motor2_steer_sign,
+                              cfg_.motor_rpm_min,
+                              cfg_.motor_rpm_max);
 
     last_error_x_ = error_x;
     last_error_y_ = error_y;

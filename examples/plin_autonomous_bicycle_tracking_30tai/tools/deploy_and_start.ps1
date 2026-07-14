@@ -3,6 +3,8 @@ param(
     [string]$BoardUser = "root",
     [string]$BoardPassword = "",
     [string]$RemoteDir = "/home/fmsh/plin_pHdmi/examples/codex/plin_main_current",
+    [ValidateRange(0, 600)]
+    [int]$BoardWaitSeconds = 180,
     [int]$PreviewPort = 8765,
     [double]$IrGain = 4.0,
     [int]$IrRedMin = 180,
@@ -91,6 +93,7 @@ $RemoteArchive = "/tmp/plin_autonomous_$SessionId.tar.gz"
 $BoardStarted = $false
 $SshArgs = @(
     "-o", "ConnectTimeout=10",
+    "-o", "LogLevel=ERROR",
     "-o", "StrictHostKeyChecking=no",
     "-o", "UserKnownHostsFile=/dev/null",
     "-o", "PreferredAuthentications=password",
@@ -118,6 +121,31 @@ try {
     $env:SSH_ASKPASS = $AskPass
     $env:SSH_ASKPASS_REQUIRE = "force"
     $env:DISPLAY = "codex"
+
+    $ProbeArgs = @(
+        "-o", "ConnectTimeout=2",
+        "-o", "LogLevel=ERROR",
+        "-o", "StrictHostKeyChecking=no",
+        "-o", "UserKnownHostsFile=/dev/null",
+        "-o", "PreferredAuthentications=password",
+        "-o", "PubkeyAuthentication=no"
+    )
+    $BoardDeadline = [DateTime]::UtcNow.AddSeconds($BoardWaitSeconds)
+    do {
+        $ProbeExitCode = 1
+        try {
+            & $Ssh @ProbeArgs $Target "true" 2>$null
+            $ProbeExitCode = $LASTEXITCODE
+        } catch {
+            $ProbeExitCode = 1
+        }
+        if ($ProbeExitCode -eq 0) { break }
+        if ([DateTime]::UtcNow -ge $BoardDeadline) {
+            throw "Board SSH did not become ready within $BoardWaitSeconds seconds."
+        }
+        Write-Host "Waiting for board SSH at $BoardIp..." -ForegroundColor Yellow
+        Start-Sleep -Seconds 2
+    } while ($true)
 
     & $Ssh @SshArgs $Target "if [ -x '$RemoteDir/stop_all.sh' ]; then '$RemoteDir/stop_all.sh'; fi; rm -rf '$RemoteDir'; mkdir -p '$RemoteDir'"
     if ($LASTEXITCODE -ne 0) { throw "Board preparation failed." }

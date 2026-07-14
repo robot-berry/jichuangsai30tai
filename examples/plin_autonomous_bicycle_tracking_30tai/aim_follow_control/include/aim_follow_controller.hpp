@@ -266,8 +266,8 @@ struct ControlConfig {
 
     // Fixed-distance following. distance_error = current_distance - target_distance.
     float target_distance_m = 1.0f;
-    float distance_deadband_m = 0.01f;
-    float distance_resume_deadband_m = 0.05f;
+    float distance_deadband_m = 0.03f;
+    float distance_resume_deadband_m = 0.08f;
     float follow_kp_rpm_per_m = 180.0f;
     int min_follow_rpm = 35;
     int max_follow_rpm = 160;

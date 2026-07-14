@@ -81,7 +81,7 @@ fi
 python3 "$REMOTE_DIR/tools/safe_tracking_bridge.py" \
     --log "$LOG_DIR/plin_live.log" \
     --arm \
-    --track-rpm-limit 35 \
+    --track-rpm-limit 40 \
     --search-rpm-limit 40 \
     --search-confirm 0.35 \
     --max-runtime "$RUN_SECONDS" \
