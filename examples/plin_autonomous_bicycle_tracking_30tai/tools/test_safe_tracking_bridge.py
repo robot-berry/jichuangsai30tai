@@ -39,7 +39,7 @@ class SafeTrackingBridgeTest(unittest.TestCase):
     def test_rejects_unsafe_commands(self):
         with self.assertRaises(ValueError):
             validate_command(
-                {"state": "TRACK", "motor1": 51, "motor2": -51}, 50, 40
+                {"state": "TRACK", "motor1": 61, "motor2": -61}, 60, 40
             )
         with self.assertRaises(ValueError):
             validate_command(

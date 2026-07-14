@@ -374,12 +374,12 @@ int main() {
 
     aim_follow::ControlConfig mixed_cfg = steer_cfg;
     mixed_cfg.distance_follow_enabled = true;
-    mixed_cfg.min_follow_rpm = 45;
-    mixed_cfg.max_follow_rpm = 45;
-    mixed_cfg.min_steer_rpm = 50;
-    mixed_cfg.max_steer_rpm = 50;
-    mixed_cfg.motor_rpm_min = -50;
-    mixed_cfg.motor_rpm_max = 50;
+    mixed_cfg.min_follow_rpm = 50;
+    mixed_cfg.max_follow_rpm = 50;
+    mixed_cfg.min_steer_rpm = 60;
+    mixed_cfg.max_steer_rpm = 60;
+    mixed_cfg.motor_rpm_min = -60;
+    mixed_cfg.motor_rpm_max = 60;
     aim_follow::AimFollowController mixed_controller(mixed_cfg);
     aim_follow::TargetObservation close_right = right;
     close_right.distance_m = 0.72f;
@@ -387,8 +387,8 @@ int main() {
     const auto backward_right = mixed_controller.update(close_right);
     assert(backward_right.forward_rpm < 0);
     assert(backward_right.steer_rpm > 0);
-    assert(backward_right.motor1_rpm == 5);
-    assert(backward_right.motor2_rpm == -50);
+    assert(backward_right.motor1_rpm == 10);
+    assert(backward_right.motor2_rpm == -60);
 
     aim_follow::TargetObservation far_right = right;
     far_right.distance_m = 1.30f;
@@ -396,8 +396,8 @@ int main() {
     const auto forward_right = mixed_controller.update(far_right);
     assert(forward_right.forward_rpm > 0);
     assert(forward_right.steer_rpm > 0);
-    assert(forward_right.motor1_rpm == 50);
-    assert(forward_right.motor2_rpm == -5);
+    assert(forward_right.motor1_rpm == 60);
+    assert(forward_right.motor2_rpm == -10);
 
     aim_follow::TargetObservation up = centered;
     up.center_y = 200.0f;

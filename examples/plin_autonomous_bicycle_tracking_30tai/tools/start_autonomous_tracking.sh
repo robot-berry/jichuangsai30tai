@@ -72,7 +72,7 @@ fi
 nohup python3 "$REMOTE_DIR/tools/safe_tracking_bridge.py" \
     --log "$VISION_LOG" \
     --arm \
-    --track-rpm-limit 50 \
+    --track-rpm-limit 60 \
     --search-rpm-limit 40 \
     --search-confirm 0.35 \
     > "$BRIDGE_LOG" 2>&1 &
@@ -87,4 +87,4 @@ if ! kill -0 "$BRIDGE_PID" 2>/dev/null; then
 fi
 
 echo "[AUTO READY] tracking=armed pid=$BRIDGE_PID gimbal=disabled"
-echo "[AUTO LIMITS] forward=45rpm steer=50rpm search=40rpm target_distance=1.00m"
+echo "[AUTO LIMITS] forward=50rpm steer=60rpm search=40rpm target_distance=1.00m"
