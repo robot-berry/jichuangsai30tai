@@ -58,7 +58,7 @@ fi
 
 rm -f "$SAFE_SOCKET" "$SAFE_STATUS" "$SAFE_LOG" "$BRIDGE_LOG"
 python3 "$REMOTE_DIR/tools/safe_can_control_session.py" \
-    --max-rpm 40 --max-pulse 0.2 >"$SAFE_LOG" 2>&1 &
+    --max-rpm 45 --max-pulse 0.2 >"$SAFE_LOG" 2>&1 &
 SAFE_PID=$!
 echo "$SAFE_PID" > "$LOG_DIR/chassis_tracking_test_safe.pid"
 
@@ -81,7 +81,7 @@ fi
 python3 "$REMOTE_DIR/tools/safe_tracking_bridge.py" \
     --log "$LOG_DIR/plin_live.log" \
     --arm \
-    --track-rpm-limit 40 \
+    --track-rpm-limit 45 \
     --search-rpm-limit 40 \
     --search-confirm 0.35 \
     --max-runtime "$RUN_SECONDS" \

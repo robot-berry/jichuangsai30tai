@@ -102,7 +102,7 @@ def main():
     parser.add_argument("--log", required=True)
     parser.add_argument("--socket", default="/tmp/plin_safe_can_control.sock")
     parser.add_argument("--status", default="/tmp/plin_safe_can_status.json")
-    parser.add_argument("--track-rpm-limit", type=int, default=40)
+    parser.add_argument("--track-rpm-limit", type=int, default=45)
     parser.add_argument("--search-rpm-limit", type=int, default=40)
     parser.add_argument("--pulse", type=float, default=0.15)
     parser.add_argument("--send-period", type=float, default=0.10)
@@ -113,10 +113,10 @@ def main():
     parser.add_argument("--max-runtime", type=float, default=0.0)
     args = parser.parse_args()
 
-    if not 1 <= args.track_rpm_limit <= 40:
-        raise SystemExit("track-rpm-limit must be between 1 and 40")
-    if not args.track_rpm_limit <= args.search_rpm_limit <= 40:
-        raise SystemExit("search-rpm-limit must be between track limit and 40")
+    if not 1 <= args.track_rpm_limit <= 45:
+        raise SystemExit("track-rpm-limit must be between 1 and 45")
+    if not 1 <= args.search_rpm_limit <= 40:
+        raise SystemExit("search-rpm-limit must be between 1 and 40")
     if not 0.05 <= args.pulse <= 0.2:
         raise SystemExit("pulse must be between 0.05 and 0.2 seconds")
     if args.send_period >= args.pulse:

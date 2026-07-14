@@ -89,6 +89,7 @@ $SessionId = [Guid]::NewGuid().ToString("N")
 $StageDir = Join-Path $env:TEMP "plin_autonomous_stage_$SessionId"
 $Archive = Join-Path $env:TEMP "plin_autonomous_$SessionId.tar.gz"
 $AskPass = Join-Path $env:TEMP "plin_askpass_$SessionId.cmd"
+$PreviewAskPass = Join-Path $ProjectDir "runtime\preview_ssh_askpass.cmd"
 $RemoteArchive = "/tmp/plin_autonomous_$SessionId.tar.gz"
 $BoardStarted = $false
 $SshArgs = @(
@@ -161,7 +162,7 @@ try {
     $BoardStarted = $true
 
     Get-CimInstance Win32_Process | Where-Object {
-        ($_.Name -eq "python.exe" -and $_.CommandLine -match "preview_plin_network_frames.py|http.server.+$PreviewPort") -or
+        ($_.Name -eq "python.exe" -and $_.CommandLine -match "preview_plin_network_frames.py") -or
         ($_.Name -eq "ssh.exe" -and $_.CommandLine -match "stream_plin_hdmi_udma.py")
     } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
     Start-Sleep -Milliseconds 500
@@ -172,6 +173,11 @@ try {
         (Join-Path $OutDir "live_status.txt") -Force -ErrorAction SilentlyContinue
     $PreviewStdout = Join-Path $ProjectDir "runtime\preview_stdout.log"
     $PreviewStderr = Join-Path $ProjectDir "runtime\preview_stderr.log"
+    [IO.File]::WriteAllText(
+        $PreviewAskPass,
+        "@echo off`r`necho %BOARD_PASS%`r`n",
+        [Text.Encoding]::ASCII)
+    $env:SSH_ASKPASS = $PreviewAskPass
     $PreviewArgs = @(
         (Join-Path $ProjectDir "tools\preview_plin_network_frames.py"),
         "--ssh", $Ssh,
@@ -198,8 +204,16 @@ try {
         -RedirectStandardOutput $PreviewStdout `
         -RedirectStandardError $PreviewStderr | Out-Null
 
+    if (-not (Get-NetTCPConnection -LocalPort $PreviewPort -State Listen -ErrorAction SilentlyContinue)) {
+        Start-Process -FilePath $Python `
+            -ArgumentList @("-m", "http.server", "$PreviewPort", "--bind", "127.0.0.1", "--directory", $OutDir) `
+            -WindowStyle Hidden `
+            -RedirectStandardOutput (Join-Path $ProjectDir "runtime\http_stdout.log") `
+            -RedirectStandardError (Join-Path $ProjectDir "runtime\http_stderr.log") | Out-Null
+    }
+
     $PreviewReady = $false
-    for ($Attempt = 0; $Attempt -lt 40; $Attempt++) {
+    for ($Attempt = 0; $Attempt -lt 120; $Attempt++) {
         Start-Sleep -Milliseconds 250
         if (Get-ChildItem -Path $OutDir -Filter "live_frame_*.jpg" -ErrorAction SilentlyContinue | Select-Object -First 1) {
             $PreviewReady = $true
@@ -209,14 +223,6 @@ try {
     if (-not $PreviewReady) {
         $PreviewError = if (Test-Path $PreviewStderr) { Get-Content $PreviewStderr -Raw } else { "no diagnostic" }
         throw "Live preview did not publish its first frame: $PreviewError"
-    }
-
-    if (-not (Get-NetTCPConnection -LocalPort $PreviewPort -State Listen -ErrorAction SilentlyContinue)) {
-        Start-Process -FilePath $Python `
-            -ArgumentList @("-m", "http.server", "$PreviewPort", "--bind", "127.0.0.1", "--directory", $OutDir) `
-            -WindowStyle Hidden `
-            -RedirectStandardOutput (Join-Path $ProjectDir "runtime\http_stdout.log") `
-            -RedirectStandardError (Join-Path $ProjectDir "runtime\http_stderr.log") | Out-Null
     }
 
     $PreviewUrl = "http://127.0.0.1:$PreviewPort/live_preview.html"
