@@ -1,0 +1,23 @@
+[Unit]
+Description=PLin ByteTrack autonomous chassis tracking
+Wants=systemd-udev-settle.service
+After=local-fs.target systemd-udev-settle.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Environment=REMOTE_DIR=@REMOTE_DIR@
+Environment=BOOT_DELAY=10
+WorkingDirectory=@REMOTE_DIR@
+ExecStart=@REMOTE_DIR@/tools/boot_autonomous_tracking.sh
+ExecStop=@REMOTE_DIR@/stop_all.sh
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=0
+TimeoutStopSec=20
+KillMode=control-group
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

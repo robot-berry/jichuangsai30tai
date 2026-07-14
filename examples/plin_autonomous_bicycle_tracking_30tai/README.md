@@ -106,7 +106,19 @@ powershell -ExecutionPolicy Bypass -File .\tools\deploy_and_start.ps1 `
 4. 启动电脑端取帧与网页服务。
 5. 打开 `http://127.0.0.1:8765/live_preview.html`。
 
-默认部署完成后即可追踪，不需要再输入开启 CAN 的命令。前后跟随上限为 `50 rpm`，转向上限为 `60 rpm`；云台、红外和丢失搜索保持关闭，目标日志或 CAN 反馈中断时自动归零。只需要无动作预览时增加 `-PreviewOnly`：
+默认部署会安装并启用 `plin-autonomous-tracking.service`。以后只需给板子上电，systemd 会等待 10 秒，再自动启动摄像头、YOLO、ByteTrack、安全 CAN 会话和底盘追踪，不需要电脑端命令。前后跟随上限为 `50 rpm`，转向上限为 `60 rpm`；云台、红外和丢失搜索保持关闭，目标日志或 CAN 反馈中断时自动归零，受控进程或心跳异常时由 systemd 重启整条链路。
+
+常用服务命令：
+
+```bash
+systemctl status plin-autonomous-tracking.service
+systemctl stop plin-autonomous-tracking.service
+systemctl start plin-autonomous-tracking.service
+```
+
+`stop_all.ps1` 会停止当前服务和所有运动，但保留开机启用状态；下次板子重新上电仍会自动运行。彻底取消开机启动时运行板端 `tools/uninstall_boot_service.sh`。板端工程会自主运行，但电脑网页仍需要电脑端取帧与 HTTP 服务处于运行状态。
+
+只需要无动作预览时增加 `-PreviewOnly`：
 
 板子刚上电、网络尚未就绪时，部署脚本默认自动等待并重连最多 `180` 秒；可用 `-BoardWaitSeconds` 在 `0–600` 秒之间调整。
 

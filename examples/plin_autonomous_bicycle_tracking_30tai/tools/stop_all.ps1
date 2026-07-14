@@ -30,7 +30,7 @@ try {
     $env:SSH_ASKPASS = $AskPass
     $env:SSH_ASKPASS_REQUIRE = "force"
     $env:DISPLAY = "codex"
-    & $Ssh -o LogLevel=ERROR -o StrictHostKeyChecking=no "$BoardUser@$BoardIp" "if [ -x '$RemoteDir/stop_all.sh' ]; then '$RemoteDir/stop_all.sh'; fi"
+    & $Ssh -o LogLevel=ERROR -o StrictHostKeyChecking=no "$BoardUser@$BoardIp" "systemctl stop plin-autonomous-tracking.service >/dev/null 2>&1 || true; if [ -x '$RemoteDir/stop_all.sh' ]; then '$RemoteDir/stop_all.sh'; fi"
 
     Get-CimInstance Win32_Process | Where-Object {
         ($_.Name -eq "python.exe" -and $_.CommandLine -match "preview_plin_network_frames.py|http.server.+$PreviewPort") -or

@@ -74,10 +74,14 @@ $Required = @(
     "tools\safe_can_control_session.py",
     "tools\safe_can_control_client.py",
     "tools\safe_tracking_bridge.py",
+    "tools\boot_autonomous_tracking.sh",
+    "tools\install_boot_service.sh",
+    "tools\uninstall_boot_service.sh",
     "tools\start_autonomous_tracking.sh",
     "tools\stop_autonomous_tracking.sh",
     "tools\stream_plin_hdmi_udma.py",
-    "tools\preview_plin_network_frames.py"
+    "tools\preview_plin_network_frames.py",
+    "systemd\plin-autonomous-tracking.service"
 )
 foreach ($RelativePath in $Required) {
     if (-not (Test-Path (Join-Path $ProjectDir $RelativePath))) {
@@ -103,7 +107,7 @@ $SshArgs = @(
 
 try {
     New-Item -ItemType Directory -Force -Path $StageDir | Out-Null
-    foreach ($Dir in @("build\ZG", "configs\ZG", "imodel\ZG", "names", "tools")) {
+    foreach ($Dir in @("build\ZG", "configs\ZG", "imodel\ZG", "names", "tools", "systemd")) {
         New-Item -ItemType Directory -Force -Path (Join-Path $StageDir $Dir) | Out-Null
     }
 
@@ -148,14 +152,16 @@ try {
         Start-Sleep -Seconds 2
     } while ($true)
 
-    & $Ssh @SshArgs $Target "if [ -x '$RemoteDir/stop_all.sh' ]; then '$RemoteDir/stop_all.sh'; fi; rm -rf '$RemoteDir'; mkdir -p '$RemoteDir'"
+    & $Ssh @SshArgs $Target "systemctl stop plin-autonomous-tracking.service >/dev/null 2>&1 || true; if [ -x '$RemoteDir/stop_all.sh' ]; then '$RemoteDir/stop_all.sh'; fi; rm -rf '$RemoteDir'; mkdir -p '$RemoteDir'"
     if ($LASTEXITCODE -ne 0) { throw "Board preparation failed." }
     & $Scp @SshArgs $Archive "${Target}:$RemoteArchive"
     if ($LASTEXITCODE -ne 0) { throw "Board upload failed." }
 
-    $RemoteStart = "set -e; tar -xzf '$RemoteArchive' -C '$RemoteDir'; chmod 755 '$RemoteDir/build/ZG/sdicamera+yolov5+hdmi' '$RemoteDir'/*.sh '$RemoteDir'/tools/*.sh '$RemoteDir'/tools/*.py; '$RemoteDir/start_vision_dryrun.sh'"
+    $RemoteStart = "set -e; tar -xzf '$RemoteArchive' -C '$RemoteDir'; chmod 755 '$RemoteDir/build/ZG/sdicamera+yolov5+hdmi' '$RemoteDir'/*.sh '$RemoteDir'/tools/*.sh '$RemoteDir'/tools/*.py"
     if ($EnableChassis) {
-        $RemoteStart += "; sleep 8; if ! REMOTE_DIR='$RemoteDir' '$RemoteDir/tools/start_autonomous_tracking.sh'; then '$RemoteDir/stop_all.sh'; exit 1; fi"
+        $RemoteStart += "; REMOTE_DIR='$RemoteDir' START_NOW=1 '$RemoteDir/tools/install_boot_service.sh'"
+    } else {
+        $RemoteStart += "; '$RemoteDir/start_vision_dryrun.sh'"
     }
     & $Ssh @SshArgs $Target $RemoteStart
     if ($LASTEXITCODE -ne 0) { throw "Board runtime failed to start." }
@@ -237,7 +243,7 @@ try {
     Write-Host "Preview: $PreviewUrl" -ForegroundColor Green
 } catch {
     if ($BoardStarted -and $EnableChassis) {
-        & $Ssh @SshArgs $Target "'$RemoteDir/stop_all.sh'" 2>$null
+        & $Ssh @SshArgs $Target "systemctl stop plin-autonomous-tracking.service >/dev/null 2>&1 || true; '$RemoteDir/stop_all.sh'" 2>$null
     }
     throw
 } finally {
