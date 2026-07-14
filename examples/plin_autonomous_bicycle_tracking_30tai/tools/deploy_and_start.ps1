@@ -6,12 +6,6 @@ param(
     [ValidateRange(0, 600)]
     [int]$BoardWaitSeconds = 180,
     [int]$PreviewPort = 8765,
-    [double]$IrGain = 4.0,
-    [int]$IrRedMin = 180,
-    [int]$IrRedDominance = 50,
-    [int]$IrReflectionMax = 200,
-    [int]$IrLocalContrast = 8,
-    [string]$IrReference = "",
     [switch]$PreviewOnly,
     [switch]$ArmChassis,
     [switch]$NoOpenBrowser
@@ -67,7 +61,6 @@ $Required = @(
     "names\coco.names",
     "run_30tai_3331.sh",
     "start_chassis_tracking_test.sh",
-    "start_laser_aim_test.sh",
     "start_vision_dryrun.sh",
     "start_tracking_test.sh",
     "stop_all.sh",
@@ -175,7 +168,6 @@ try {
 
     New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
     Remove-Item -Path (Join-Path $OutDir "live_frame_*.jpg"), `
-        (Join-Path $OutDir "live_enhanced_*.jpg"), `
         (Join-Path $OutDir "live_status.txt") -Force -ErrorAction SilentlyContinue
     $PreviewStdout = Join-Path $ProjectDir "runtime\preview_stdout.log"
     $PreviewStderr = Join-Path $ProjectDir "runtime\preview_stderr.log"
@@ -193,16 +185,8 @@ try {
         "--seconds", "7200",
         "--interval", "0.6",
         "--preview-width", "960",
-        "--ir-gain", "$IrGain",
-        "--ir-red-min", "$IrRedMin",
-        "--ir-red-dominance", "$IrRedDominance",
-        "--ir-reflection-max", "$IrReflectionMax",
-        "--ir-local-contrast", "$IrLocalContrast"
+        "--quality", "80"
     )
-    if (-not [string]::IsNullOrWhiteSpace($IrReference)) {
-        $ResolvedIrReference = (Resolve-Path $IrReference).Path
-        $PreviewArgs += @("--ir-reference", $ResolvedIrReference)
-    }
     Start-Process -FilePath $Python `
         -ArgumentList $PreviewArgs `
         -WorkingDirectory $ProjectDir `

@@ -26,25 +26,16 @@ if [ -z "$WATCHDOG_DELAY" ]; then
 fi
 ENABLE_CHASSIS="${ENABLE_CHASSIS:-1}"
 ENABLE_GIMBAL="${ENABLE_GIMBAL:-0}"
-ENABLE_LASER="${ENABLE_LASER:-0}"
 
-case "$ENABLE_CHASSIS:$ENABLE_GIMBAL:$ENABLE_LASER" in
-    [01]:[01]:[01]) ;;
+case "$ENABLE_CHASSIS:$ENABLE_GIMBAL" in
+    [01]:[01]) ;;
     *)
-        echo "[SAFETY] ENABLE_CHASSIS, ENABLE_GIMBAL and ENABLE_LASER must be 0 or 1." >&2
+        echo "[SAFETY] ENABLE_CHASSIS and ENABLE_GIMBAL must be 0 or 1." >&2
         exit 2
         ;;
 esac
-if [ "$ENABLE_LASER" = "1" ] && [ "$ENABLE_GIMBAL" != "1" ]; then
-    echo "[SAFETY] ENABLE_LASER=1 requires ENABLE_GIMBAL=1." >&2
-    exit 2
-fi
-if [ "$ENABLE_LASER" = "1" ] && [ "${IR_READY:-NO}" != "YES" ]; then
-    echo "[SAFETY] ENABLE_LASER=1 requires IR_READY=YES after the emitter is on." >&2
-    exit 2
-fi
 
-if [ "$ENABLE_CHASSIS" = "1" ] && [ "$ENABLE_GIMBAL" = "0" ] && [ "$ENABLE_LASER" = "0" ]; then
+if [ "$ENABLE_CHASSIS" = "1" ] && [ "$ENABLE_GIMBAL" = "0" ]; then
     exec "$REMOTE_DIR/start_chassis_tracking_test.sh"
 fi
 
@@ -61,8 +52,6 @@ cd "$REMOTE_DIR"
     AIM_FOLLOW_SETUP_CAN=1 \
     AIM_FOLLOW_CAN_BITRATE=250000 \
     AIM_FOLLOW_BYTETRACK_ENABLE=1 \
-    AIM_FOLLOW_LASER_AIM_ENABLE="$ENABLE_LASER" \
-    AIM_FOLLOW_LASER_MOTION_ENABLE=1 \
     AIM_FOLLOW_DISTANCE_FOCAL_PX=600 \
     AIM_FOLLOW_DISTANCE_STABILITY_DEADBAND_M=0.01 \
     AIM_FOLLOW_GIMBAL_ENABLE="$ENABLE_GIMBAL" \
@@ -88,15 +77,6 @@ cd "$REMOTE_DIR"
     AIM_FOLLOW_YAW_KD=0 \
     AIM_FOLLOW_PITCH_KP=0 \
     AIM_FOLLOW_PITCH_KD=0 \
-    AIM_FOLLOW_LASER_MIN_YAW=100 \
-    AIM_FOLLOW_LASER_MAX_YAW=165 \
-    AIM_FOLLOW_LASER_MIN_PITCH=120 \
-    AIM_FOLLOW_LASER_MAX_PITCH=180 \
-    AIM_FOLLOW_LASER_COARSE_YAW_STEP=5 \
-    AIM_FOLLOW_LASER_COARSE_YAW_ENABLE=0 \
-    AIM_FOLLOW_LASER_COARSE_PITCH_STEP=5 \
-    AIM_FOLLOW_LASER_FINE_YAW_ENABLE=1 \
-    AIM_FOLLOW_LASER_FINE_MAX_STEP=2 \
     stdbuf -oL -eL "$REMOTE_DIR/run_30tai_3331.sh" "$CONFIG" \
     > "$LOG_DIR/plin_live.log" 2>&1) >/dev/null 2>&1 &
 APP_PID=$!
@@ -124,4 +104,4 @@ if ! kill -0 "$APP_PID" 2>/dev/null; then
     exit 1
 fi
 
-echo "[TRACKING READY] pid=$APP_PID duration=${RUN_SECONDS}s chassis=$ENABLE_CHASSIS gimbal=$ENABLE_GIMBAL laser=$ENABLE_LASER"
+echo "[TRACKING READY] pid=$APP_PID duration=${RUN_SECONDS}s chassis=$ENABLE_CHASSIS gimbal=$ENABLE_GIMBAL"

@@ -179,28 +179,6 @@ const int AIM_FOLLOW_BYTETRACK_SWITCH_DELAY_FRAMES = 3;
 const float AIM_FOLLOW_BYTETRACK_TRACK_THRESH = 0.30f;
 const float AIM_FOLLOW_BYTETRACK_HIGH_THRESH = 0.45f;
 const float AIM_FOLLOW_BYTETRACK_MATCH_THRESH = 0.80f;
-const bool AIM_FOLLOW_LASER_AIM_ENABLE = false;
-const float AIM_FOLLOW_LASER_CENTER_GATE_NORM = 0.08f;
-const int AIM_FOLLOW_LASER_RED_MIN = 250;
-const int AIM_FOLLOW_LASER_RED_DOMINANCE = 130;
-const int AIM_FOLLOW_LASER_REFLECTION_MAX = 200;
-const int AIM_FOLLOW_LASER_LOCAL_CONTRAST = 20;
-const int AIM_FOLLOW_LASER_MIN_AREA = 2;
-const int AIM_FOLLOW_LASER_MAX_AREA = 220;
-const int AIM_FOLLOW_LASER_MAX_SPAN = 36;
-const bool AIM_FOLLOW_LASER_DEBUG_VIEW = false;
-const float AIM_FOLLOW_LASER_DEBUG_GAIN = 4.0f;
-const bool AIM_FOLLOW_LASER_MOTION_ENABLE = true;
-const int AIM_FOLLOW_LASER_MOTION_DELTA_MIN = 6;
-const int AIM_FOLLOW_LASER_MOTION_LOCAL_MIN = 3;
-const int AIM_FOLLOW_LASER_MOTION_MIN_AREA = 2;
-const int AIM_FOLLOW_LASER_MOTION_MAX_AREA = 160;
-const int AIM_FOLLOW_LASER_MOTION_MAX_SPAN = 24;
-const int AIM_FOLLOW_LASER_MOTION_SETTLE_FRAMES = 1;
-const int AIM_FOLLOW_LASER_MOTION_SAMPLE_FRAMES = 4;
-const int AIM_FOLLOW_LASER_MOTION_HOLD_FRAMES = 6;
-const bool AIM_FOLLOW_LASER_COARSE_YAW_ENABLE = false;
-const bool AIM_FOLLOW_LASER_FINE_YAW_ENABLE = true;
 const float DISTANCE_TARGET_REAL_WIDTH_M = 0.24f;
 // This focal length was calibrated in YOLO model coordinates (640 px wide),
 // not the 1920 px HDMI display coordinates.
@@ -589,264 +567,6 @@ void draw_reticle(cv::Mat& img,
 
 
 
-struct RedLaserDetectorConfig {
-    int red_min = AIM_FOLLOW_LASER_RED_MIN;
-    int red_dominance = AIM_FOLLOW_LASER_RED_DOMINANCE;
-    int reflection_max = AIM_FOLLOW_LASER_REFLECTION_MAX;
-    int local_contrast = AIM_FOLLOW_LASER_LOCAL_CONTRAST;
-    int min_area = AIM_FOLLOW_LASER_MIN_AREA;
-    int max_area = AIM_FOLLOW_LASER_MAX_AREA;
-    int max_span = AIM_FOLLOW_LASER_MAX_SPAN;
-};
-
-struct RedLaserDetection {
-    bool valid = false;
-    cv::Point2f center;
-    cv::Rect bounds;
-    int area = 0;
-    float score = 0.0f;
-    float peak_dominance = 0.0f;
-    int peak_red = 0;
-    cv::Point peak_point;
-};
-
-struct LaserMotionDetectorConfig {
-    int delta_min = AIM_FOLLOW_LASER_MOTION_DELTA_MIN;
-    int local_min = AIM_FOLLOW_LASER_MOTION_LOCAL_MIN;
-    int min_area = AIM_FOLLOW_LASER_MOTION_MIN_AREA;
-    int max_area = AIM_FOLLOW_LASER_MOTION_MAX_AREA;
-    int max_span = AIM_FOLLOW_LASER_MOTION_MAX_SPAN;
-};
-
-cv::Mat red_dominance_image(const cv::Mat &bgr) {
-    if (bgr.empty() || bgr.type() != CV_8UC3) {
-        return cv::Mat();
-    }
-    std::vector<cv::Mat> channels;
-    cv::split(bgr, channels);
-    cv::Mat background;
-    cv::Mat dominance;
-    cv::max(channels[0], channels[1], background);
-    cv::subtract(channels[2], background, dominance);
-    return dominance;
-}
-
-RedLaserDetection detect_red_laser(const cv::Mat &bgr,
-                                   const RedLaserDetectorConfig &cfg,
-                                   const cv::Point2f &target_center) {
-    RedLaserDetection best;
-    if (bgr.empty() || bgr.type() != CV_8UC3) {
-        return best;
-    }
-
-    std::vector<cv::Mat> channels;
-    cv::split(bgr, channels);
-    const cv::Mat dominance_image = red_dominance_image(bgr);
-    cv::Mat red_mask;
-    cv::Mat red_green;
-    cv::Mat red_blue;
-    cv::Mat dominance_green;
-    cv::Mat dominance_blue;
-    cv::Mat competing_color;
-    cv::Mat reflection_mask;
-    cv::Mat local_background;
-    cv::Mat local_peak;
-    cv::Mat local_contrast_mask;
-    cv::compare(channels[2], std::clamp(cfg.red_min, 0, 255), red_mask, cv::CMP_GE);
-    cv::subtract(channels[2], channels[1], red_green);
-    cv::subtract(channels[2], channels[0], red_blue);
-    cv::compare(red_green, std::clamp(cfg.red_dominance, 0, 255),
-                dominance_green, cv::CMP_GE);
-    cv::compare(red_blue, std::clamp(cfg.red_dominance, 0, 255),
-                dominance_blue, cv::CMP_GE);
-    cv::max(channels[0], channels[1], competing_color);
-    cv::compare(competing_color, std::clamp(cfg.reflection_max, 0, 255),
-                reflection_mask, cv::CMP_LE);
-    cv::bitwise_and(red_mask, dominance_green, red_mask);
-    cv::bitwise_and(red_mask, dominance_blue, red_mask);
-    cv::bitwise_and(red_mask, reflection_mask, red_mask);
-    cv::GaussianBlur(dominance_image, local_background, cv::Size(11, 11), 0.0);
-    cv::subtract(dominance_image, local_background, local_peak);
-    cv::compare(local_peak, std::clamp(cfg.local_contrast, 0, 255),
-                local_contrast_mask, cv::CMP_GE);
-    cv::bitwise_and(red_mask, local_contrast_mask, red_mask);
-
-    double peak_dominance = 0.0;
-    cv::minMaxLoc(dominance_image, nullptr, &peak_dominance,
-                  nullptr, &best.peak_point);
-    best.peak_dominance = static_cast<float>(peak_dominance);
-    best.peak_red = static_cast<int>(channels[2].at<uint8_t>(best.peak_point));
-
-    std::vector<std::vector<cv::Point>> contours;
-    cv::findContours(red_mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-    const float frame_diagonal = std::sqrt(
-        static_cast<float>(bgr.cols * bgr.cols + bgr.rows * bgr.rows));
-
-    for (const auto &contour : contours) {
-        const cv::Rect bounds = cv::boundingRect(contour);
-        if (bounds.width <= 0 || bounds.height <= 0 ||
-            bounds.width > std::max(1, cfg.max_span) ||
-            bounds.height > std::max(1, cfg.max_span)) {
-            continue;
-        }
-        const int area = cv::countNonZero(red_mask(bounds));
-        if (area < std::max(1, cfg.min_area) ||
-            area > std::max(cfg.min_area, cfg.max_area)) {
-            continue;
-        }
-        const float aspect = static_cast<float>(std::max(bounds.width, bounds.height)) /
-                             static_cast<float>(std::max(1, std::min(bounds.width, bounds.height)));
-        const float fill = static_cast<float>(area) /
-                           static_cast<float>(bounds.width * bounds.height);
-        if (aspect > 3.5f || fill < 0.12f) {
-            continue;
-        }
-
-        const cv::Moments moments = cv::moments(red_mask(bounds), true);
-        if (moments.m00 <= 0.0) {
-            continue;
-        }
-        const cv::Point2f center(
-            bounds.x + static_cast<float>(moments.m10 / moments.m00),
-            bounds.y + static_cast<float>(moments.m01 / moments.m00));
-        const cv::Scalar mean_bgr = cv::mean(bgr(bounds), red_mask(bounds));
-        const float dominance = static_cast<float>(
-            mean_bgr[2] - std::max(mean_bgr[0], mean_bgr[1]));
-        const float target_distance = frame_diagonal > 1.0f
-            ? cv::norm(center - target_center) / frame_diagonal
-            : 1.0f;
-        const float score = static_cast<float>(mean_bgr[2]) + dominance +
-                            fill * 40.0f - target_distance * 15.0f -
-                            static_cast<float>(area) * 0.03f;
-        if (!best.valid || score > best.score) {
-            best.valid = true;
-            best.center = center;
-            best.bounds = bounds;
-            best.area = area;
-            best.score = score;
-        }
-    }
-    return best;
-}
-
-RedLaserDetection detect_laser_motion(const cv::Mat &reference_bgr,
-                                      const cv::Mat &current_bgr,
-                                      const LaserMotionDetectorConfig &cfg,
-                                      const cv::Point2f &target_center) {
-    RedLaserDetection best;
-    if (reference_bgr.empty() || current_bgr.empty() ||
-        reference_bgr.type() != CV_8UC3 || current_bgr.type() != CV_8UC3 ||
-        reference_bgr.size() != current_bgr.size()) {
-        return best;
-    }
-
-    std::vector<cv::Mat> reference_channels;
-    std::vector<cv::Mat> current_channels;
-    cv::split(reference_bgr, reference_channels);
-    cv::split(current_bgr, current_channels);
-
-    cv::Mat delta_red;
-    cv::Mat local_background;
-    cv::Mat local_delta;
-    cv::Mat delta_mask;
-    cv::Mat local_mask;
-    cv::subtract(current_channels[2], reference_channels[2], delta_red);
-    cv::GaussianBlur(delta_red, local_background, cv::Size(11, 11), 0.0);
-    cv::subtract(delta_red, local_background, local_delta);
-    cv::compare(delta_red, std::clamp(cfg.delta_min, 0, 255),
-                delta_mask, cv::CMP_GE);
-    cv::compare(local_delta, std::clamp(cfg.local_min, 0, 255),
-                local_mask, cv::CMP_GE);
-    cv::bitwise_and(delta_mask, local_mask, delta_mask);
-
-    double peak_delta = 0.0;
-    cv::minMaxLoc(delta_red, nullptr, &peak_delta, nullptr, &best.peak_point);
-    best.peak_dominance = static_cast<float>(peak_delta);
-    best.peak_red = static_cast<int>(
-        current_channels[2].at<uint8_t>(best.peak_point));
-
-    std::vector<std::vector<cv::Point>> contours;
-    cv::findContours(delta_mask, contours, cv::RETR_EXTERNAL,
-                     cv::CHAIN_APPROX_SIMPLE);
-    const float frame_diagonal = std::sqrt(
-        static_cast<float>(current_bgr.cols * current_bgr.cols +
-                           current_bgr.rows * current_bgr.rows));
-
-    for (const auto &contour : contours) {
-        const cv::Rect bounds = cv::boundingRect(contour);
-        if (bounds.width <= 0 || bounds.height <= 0 ||
-            bounds.width > std::max(1, cfg.max_span) ||
-            bounds.height > std::max(1, cfg.max_span)) {
-            continue;
-        }
-        const int area = cv::countNonZero(delta_mask(bounds));
-        if (area < std::max(1, cfg.min_area) ||
-            area > std::max(cfg.min_area, cfg.max_area)) {
-            continue;
-        }
-        const float aspect = static_cast<float>(
-            std::max(bounds.width, bounds.height)) /
-            static_cast<float>(std::max(1, std::min(bounds.width, bounds.height)));
-        const float fill = static_cast<float>(area) /
-                           static_cast<float>(bounds.width * bounds.height);
-        if (aspect > 3.5f || fill < 0.12f) {
-            continue;
-        }
-
-        const cv::Moments moments = cv::moments(delta_mask(bounds), true);
-        if (moments.m00 <= 0.0) {
-            continue;
-        }
-        const cv::Point2f center(
-            bounds.x + static_cast<float>(moments.m10 / moments.m00),
-            bounds.y + static_cast<float>(moments.m01 / moments.m00));
-        const cv::Scalar mean_delta = cv::mean(delta_red(bounds), delta_mask(bounds));
-        double component_peak = 0.0;
-        cv::minMaxLoc(delta_red(bounds), nullptr, &component_peak, nullptr, nullptr,
-                      delta_mask(bounds));
-        const float target_distance = frame_diagonal > 1.0f
-            ? cv::norm(center - target_center) / frame_diagonal
-            : 1.0f;
-        const float score = static_cast<float>(mean_delta[0]) * 4.0f +
-                            static_cast<float>(component_peak) + fill * 20.0f -
-                            target_distance * 8.0f - static_cast<float>(area) * 0.02f;
-        if (!best.valid || score > best.score) {
-            best.valid = true;
-            best.center = center;
-            best.bounds = bounds;
-            best.area = area;
-            best.score = score;
-        }
-    }
-    return best;
-}
-
-void draw_red_laser_debug_view(cv::Mat &frame, float gain) {
-    const cv::Mat dominance = red_dominance_image(frame);
-    if (dominance.empty()) {
-        return;
-    }
-    cv::Mat enhanced;
-    dominance.convertTo(enhanced, CV_8U, std::max(0.1f, gain));
-    cv::Mat heatmap;
-    cv::applyColorMap(enhanced, heatmap, cv::COLORMAP_HOT);
-    const int preview_w = std::min(320, frame.cols / 3);
-    const int preview_h = std::max(1, preview_w * frame.rows / frame.cols);
-    cv::resize(heatmap, heatmap, cv::Size(preview_w, preview_h),
-               0.0, 0.0, cv::INTER_AREA);
-    const int x = std::max(0, frame.cols - preview_w - 18);
-    const int y = 48;
-    if (y + preview_h > frame.rows) {
-        return;
-    }
-    heatmap.copyTo(frame(cv::Rect(x, y, preview_w, preview_h)));
-    cv::rectangle(frame, cv::Rect(x, y, preview_w, preview_h),
-                  cv::Scalar(255, 255, 255), 2, cv::LINE_AA);
-    cv::putText(frame, "IR/RED ENHANCED", cv::Point(x + 8, y + 24),
-                cv::FONT_HERSHEY_DUPLEX, 0.65,
-                cv::Scalar(255, 255, 255), 2, cv::LINE_AA);
-}
-
 int main(int argc, char *argv[])
 {
 
@@ -907,104 +627,6 @@ int main(int argc, char *argv[])
 
     const bool aim_follow_gimbal_enable = get_env_bool(AIM_FOLLOW_GIMBAL_ENABLE_ENV, true);
     const bool aim_follow_chassis_enable = get_env_bool(AIM_FOLLOW_CHASSIS_ENABLE_ENV, true);
-    const bool aim_follow_laser_aim_enable =
-        get_env_bool("AIM_FOLLOW_LASER_AIM_ENABLE", AIM_FOLLOW_LASER_AIM_ENABLE);
-    const float aim_follow_laser_center_gate_norm =
-        get_env_float("AIM_FOLLOW_LASER_CENTER_GATE_NORM",
-                      AIM_FOLLOW_LASER_CENTER_GATE_NORM, 0.01f, 0.5f);
-    const int aim_follow_laser_min_yaw =
-        get_env_int("AIM_FOLLOW_LASER_MIN_YAW", 100, CMD_YAW_MIN, CMD_YAW_MAX);
-    const int aim_follow_laser_max_yaw =
-        get_env_int("AIM_FOLLOW_LASER_MAX_YAW", 165, CMD_YAW_MIN, CMD_YAW_MAX);
-    const int aim_follow_laser_min_pitch =
-        get_env_int("AIM_FOLLOW_LASER_MIN_PITCH", 120, CMD_PITCH_MIN, CMD_PITCH_MAX);
-    const int aim_follow_laser_max_pitch =
-        get_env_int("AIM_FOLLOW_LASER_MAX_PITCH", 180, CMD_PITCH_MIN, CMD_PITCH_MAX);
-    const int aim_follow_laser_center_hold_frames =
-        get_env_int("AIM_FOLLOW_LASER_CENTER_HOLD_FRAMES", 8, 1, 120);
-    const int aim_follow_laser_confirm_frames =
-        get_env_int("AIM_FOLLOW_LASER_CONFIRM_FRAMES", 2, 1, 30);
-    const int aim_follow_laser_lost_frames =
-        get_env_int("AIM_FOLLOW_LASER_LOST_FRAMES", 5, 0, 120);
-    const int aim_follow_laser_coarse_hold_frames =
-        get_env_int("AIM_FOLLOW_LASER_COARSE_HOLD_FRAMES", 5, 1, 120);
-    const int aim_follow_laser_coarse_yaw_step =
-        get_env_int("AIM_FOLLOW_LASER_COARSE_YAW_STEP", 5, 1, 20);
-    const int aim_follow_laser_coarse_pitch_step =
-        get_env_int("AIM_FOLLOW_LASER_COARSE_PITCH_STEP", 5, 1, 20);
-    const bool aim_follow_laser_coarse_yaw_enable =
-        get_env_bool("AIM_FOLLOW_LASER_COARSE_YAW_ENABLE",
-                     AIM_FOLLOW_LASER_COARSE_YAW_ENABLE);
-    const float aim_follow_laser_coarse_motion_px =
-        get_env_float("AIM_FOLLOW_LASER_COARSE_MOTION_PX", 4.0f, 0.0f, 100.0f);
-    const float aim_follow_laser_fine_deadzone_norm =
-        get_env_float("AIM_FOLLOW_LASER_FINE_DEADZONE_NORM", 0.015f, 0.001f, 0.2f);
-    const float aim_follow_laser_fine_yaw_kp =
-        get_env_float("AIM_FOLLOW_LASER_FINE_YAW_KP", 6.0f, 0.1f, 50.0f);
-    const float aim_follow_laser_fine_pitch_kp =
-        get_env_float("AIM_FOLLOW_LASER_FINE_PITCH_KP", 6.0f, 0.1f, 50.0f);
-    const int aim_follow_laser_fine_max_step =
-        get_env_int("AIM_FOLLOW_LASER_FINE_MAX_STEP", 2, 1, 10);
-    const bool aim_follow_laser_fine_yaw_enable =
-        get_env_bool("AIM_FOLLOW_LASER_FINE_YAW_ENABLE",
-                     AIM_FOLLOW_LASER_FINE_YAW_ENABLE);
-    const int aim_follow_laser_lock_hold_frames =
-        get_env_int("AIM_FOLLOW_LASER_LOCK_HOLD_FRAMES", 5, 1, 120);
-    const bool aim_follow_laser_invert_yaw =
-        get_env_bool("AIM_FOLLOW_LASER_INVERT_YAW", false);
-    const bool aim_follow_laser_invert_pitch =
-        get_env_bool("AIM_FOLLOW_LASER_INVERT_PITCH", false);
-    const bool aim_follow_laser_debug_view =
-        get_env_bool("AIM_FOLLOW_LASER_DEBUG_VIEW", AIM_FOLLOW_LASER_DEBUG_VIEW);
-    const float aim_follow_laser_debug_gain =
-        get_env_float("AIM_FOLLOW_LASER_DEBUG_GAIN",
-                      AIM_FOLLOW_LASER_DEBUG_GAIN, 0.1f, 20.0f);
-    RedLaserDetectorConfig red_laser_cfg;
-    red_laser_cfg.red_min =
-        get_env_int("AIM_FOLLOW_LASER_RED_MIN", AIM_FOLLOW_LASER_RED_MIN, 0, 255);
-    red_laser_cfg.red_dominance =
-        get_env_int("AIM_FOLLOW_LASER_RED_DOMINANCE",
-                    AIM_FOLLOW_LASER_RED_DOMINANCE, 0, 255);
-    red_laser_cfg.reflection_max =
-        get_env_int("AIM_FOLLOW_LASER_REFLECTION_MAX",
-                    AIM_FOLLOW_LASER_REFLECTION_MAX, 0, 255);
-    red_laser_cfg.local_contrast =
-        get_env_int("AIM_FOLLOW_LASER_LOCAL_CONTRAST",
-                    AIM_FOLLOW_LASER_LOCAL_CONTRAST, 0, 255);
-    red_laser_cfg.min_area =
-        get_env_int("AIM_FOLLOW_LASER_MIN_AREA", AIM_FOLLOW_LASER_MIN_AREA, 1, 1000);
-    red_laser_cfg.max_area =
-        get_env_int("AIM_FOLLOW_LASER_MAX_AREA", AIM_FOLLOW_LASER_MAX_AREA, 1, 5000);
-    red_laser_cfg.max_span =
-        get_env_int("AIM_FOLLOW_LASER_MAX_SPAN", AIM_FOLLOW_LASER_MAX_SPAN, 1, 200);
-    const bool aim_follow_laser_motion_enable =
-        get_env_bool("AIM_FOLLOW_LASER_MOTION_ENABLE",
-                     AIM_FOLLOW_LASER_MOTION_ENABLE);
-    LaserMotionDetectorConfig laser_motion_cfg;
-    laser_motion_cfg.delta_min =
-        get_env_int("AIM_FOLLOW_LASER_MOTION_DELTA_MIN",
-                    AIM_FOLLOW_LASER_MOTION_DELTA_MIN, 1, 255);
-    laser_motion_cfg.local_min =
-        get_env_int("AIM_FOLLOW_LASER_MOTION_LOCAL_MIN",
-                    AIM_FOLLOW_LASER_MOTION_LOCAL_MIN, 1, 255);
-    laser_motion_cfg.min_area =
-        get_env_int("AIM_FOLLOW_LASER_MOTION_MIN_AREA",
-                    AIM_FOLLOW_LASER_MOTION_MIN_AREA, 1, 1000);
-    laser_motion_cfg.max_area =
-        get_env_int("AIM_FOLLOW_LASER_MOTION_MAX_AREA",
-                    AIM_FOLLOW_LASER_MOTION_MAX_AREA, 1, 5000);
-    laser_motion_cfg.max_span =
-        get_env_int("AIM_FOLLOW_LASER_MOTION_MAX_SPAN",
-                    AIM_FOLLOW_LASER_MOTION_MAX_SPAN, 1, 200);
-    const int aim_follow_laser_motion_settle_frames =
-        get_env_int("AIM_FOLLOW_LASER_MOTION_SETTLE_FRAMES",
-                    AIM_FOLLOW_LASER_MOTION_SETTLE_FRAMES, 0, 30);
-    const int aim_follow_laser_motion_sample_frames =
-        get_env_int("AIM_FOLLOW_LASER_MOTION_SAMPLE_FRAMES",
-                    AIM_FOLLOW_LASER_MOTION_SAMPLE_FRAMES, 1, 30);
-    const int aim_follow_laser_motion_hold_frames =
-        get_env_int("AIM_FOLLOW_LASER_MOTION_HOLD_FRAMES",
-                    AIM_FOLLOW_LASER_MOTION_HOLD_FRAMES, 1, 120);
     const int aim_follow_gimbal_aux =
         get_env_int("AIM_FOLLOW_GIMBAL_AUX", GIMBAL_AUX_CENTER, CMD_PITCH_MIN, CMD_PITCH_MAX);
     const int aim_follow_gimbal_repeat =
@@ -1269,38 +891,6 @@ int main(int argc, char *argv[])
     control_cfg.default_search_direction = aim_follow_default_search_direction;
     aim_follow::AimFollowController follow_controller(control_cfg);
 
-    aim_follow::LaserAimConfig laser_aim_cfg;
-    laser_aim_cfg.frame_width = static_cast<float>(FRAME_W);
-    laser_aim_cfg.frame_height = static_cast<float>(FRAME_H);
-    laser_aim_cfg.center_yaw = CENTER_YAW;
-    laser_aim_cfg.center_pitch = CENTER_PITCH;
-    laser_aim_cfg.min_yaw = std::min(aim_follow_laser_min_yaw, aim_follow_laser_max_yaw);
-    laser_aim_cfg.max_yaw = std::max(aim_follow_laser_min_yaw, aim_follow_laser_max_yaw);
-    laser_aim_cfg.min_pitch = std::min(aim_follow_laser_min_pitch, aim_follow_laser_max_pitch);
-    laser_aim_cfg.max_pitch = std::max(aim_follow_laser_min_pitch, aim_follow_laser_max_pitch);
-    laser_aim_cfg.centered_hold_frames = aim_follow_laser_center_hold_frames;
-    laser_aim_cfg.laser_confirm_frames = aim_follow_laser_confirm_frames;
-    laser_aim_cfg.laser_lost_frames = aim_follow_laser_lost_frames;
-    laser_aim_cfg.coarse_hold_frames = aim_follow_laser_coarse_hold_frames;
-    laser_aim_cfg.coarse_yaw_step = aim_follow_laser_coarse_yaw_step;
-    laser_aim_cfg.coarse_pitch_step = aim_follow_laser_coarse_pitch_step;
-    laser_aim_cfg.coarse_yaw_enable = aim_follow_laser_coarse_yaw_enable;
-    laser_aim_cfg.coarse_laser_motion_min_px = aim_follow_laser_coarse_motion_px;
-    laser_aim_cfg.fine_deadzone_norm = aim_follow_laser_fine_deadzone_norm;
-    laser_aim_cfg.fine_yaw_kp = aim_follow_laser_fine_yaw_kp;
-    laser_aim_cfg.fine_pitch_kp = aim_follow_laser_fine_pitch_kp;
-    laser_aim_cfg.fine_max_step = aim_follow_laser_fine_max_step;
-    laser_aim_cfg.fine_yaw_enable = aim_follow_laser_fine_yaw_enable;
-    laser_aim_cfg.lock_hold_frames = aim_follow_laser_lock_hold_frames;
-    laser_aim_cfg.invert_yaw = aim_follow_laser_invert_yaw;
-    laser_aim_cfg.invert_pitch = aim_follow_laser_invert_pitch;
-    aim_follow::LaserAimController laser_aim_controller(laser_aim_cfg);
-    cv::Mat laser_motion_reference;
-    RedLaserDetection held_laser_motion_detection;
-    int laser_motion_settle_remaining = 0;
-    int laser_motion_sample_remaining = 0;
-    int laser_motion_hold_remaining = 0;
-
     int bicycle_class_id = -1;
     for (int label_idx = 0; label_idx < static_cast<int>(yolov5_cfg.LABELS.size()); ++label_idx) {
         if (yolov5_cfg.LABELS[label_idx] == "bicycle") {
@@ -1337,16 +927,6 @@ int main(int argc, char *argv[])
               << " bytetrack=" << (aim_follow_bytetrack_enable ? 1 : 0)
               << " bytetrack_thresh=" << aim_follow_bytetrack_track_thresh
               << "/" << aim_follow_bytetrack_high_thresh
-              << " laser_aim=" << (aim_follow_laser_aim_enable ? 1 : 0)
-              << " laser_motion=" << (aim_follow_laser_motion_enable ? 1 : 0)
-              << " laser_motion_delta=" << laser_motion_cfg.delta_min
-              << "/" << laser_motion_cfg.local_min
-              << " laser_yaw_axes="
-              << (laser_aim_cfg.coarse_yaw_enable ? 1 : 0) << "/"
-              << (laser_aim_cfg.fine_yaw_enable ? 1 : 0)
-              << " laser_gate=" << aim_follow_laser_center_gate_norm
-              << " laser_yaw_range=" << laser_aim_cfg.min_yaw << ":" << laser_aim_cfg.max_yaw
-              << " laser_pitch_range=" << laser_aim_cfg.min_pitch << ":" << laser_aim_cfg.max_pitch
               << std::endl;
     std::vector<FPSCalculator> fps_calculators(CAMERA_COUNT); // 为每个流创建一个FPS计算器
 
@@ -1396,10 +976,6 @@ int main(int argc, char *argv[])
         {
             LOG_ERROR("[PostProcessor]", "Invalid source_id {} received.", source_id);
             return;
-        }
-        cv::Mat laser_motion_current;
-        if (aim_follow_laser_aim_enable && aim_follow_laser_motion_enable) {
-            laser_motion_current = cvmat_to_draw.clone();
         }
         // 调用真正的实现，并传入所有捕获的参数
         auto &netinfo = netinfos[source_id];
@@ -1663,12 +1239,6 @@ int main(int argc, char *argv[])
         int control_motor2 = last_motor2;
         int control_pitch = last_pitch;
         int control_yaw = last_yaw;
-        RedLaserDetection red_laser_detection;
-        bool laser_motion_confirmed = false;
-        aim_follow::LaserAimOutput laser_aim_cmd;
-        laser_aim_cmd.state = laser_aim_controller.state();
-        laser_aim_cmd.pitch = last_pitch;
-        laser_aim_cmd.yaw = last_yaw;
         bool gimbal_command_active = false;
 
         if (AIM_FOLLOW_CONTROL_ENABLE && has_control_target) {
@@ -1706,78 +1276,7 @@ int main(int argc, char *argv[])
                 control_motor2 = 0;
             }
 
-            if (aim_follow_laser_aim_enable) {
-                aim_follow::LaserAimObservation laser_obs;
-                laser_obs.target_valid = true;
-                laser_obs.target_centered =
-                    std::fabs(control_ex) <= aim_follow_laser_center_gate_norm;
-                laser_obs.vehicle_stationary =
-                    control_motor1 == 0 && control_motor2 == 0;
-                const bool laser_gate_ready =
-                    laser_obs.target_centered && laser_obs.vehicle_stationary;
-                if (!laser_gate_ready) {
-                    laser_motion_reference.release();
-                    laser_motion_settle_remaining = 0;
-                    laser_motion_sample_remaining = 0;
-                    laser_motion_hold_remaining = 0;
-                } else if (aim_follow_laser_motion_enable) {
-                    if (laser_motion_sample_remaining > 0 &&
-                        !laser_motion_reference.empty()) {
-                        if (laser_motion_settle_remaining > 0) {
-                            --laser_motion_settle_remaining;
-                        } else {
-                            red_laser_detection = detect_laser_motion(
-                                laser_motion_reference,
-                                laser_motion_current,
-                                laser_motion_cfg,
-                                cv::Point2f(cx, cy));
-                            --laser_motion_sample_remaining;
-                            if (red_laser_detection.valid) {
-                                laser_motion_confirmed = true;
-                                held_laser_motion_detection = red_laser_detection;
-                                laser_motion_hold_remaining =
-                                    aim_follow_laser_motion_hold_frames;
-                                laser_motion_sample_remaining = 0;
-                            }
-                        }
-                    }
-                    if (!red_laser_detection.valid &&
-                        laser_motion_hold_remaining > 0 &&
-                        held_laser_motion_detection.valid) {
-                        red_laser_detection = held_laser_motion_detection;
-                        --laser_motion_hold_remaining;
-                    }
-                } else {
-                    red_laser_detection = detect_red_laser(
-                        cvmat_to_draw, red_laser_cfg, cv::Point2f(cx, cy));
-                }
-                laser_obs.target_center_x = cx;
-                laser_obs.target_center_y = cy;
-                laser_obs.laser_valid = red_laser_detection.valid;
-                laser_obs.laser_motion_confirmed = laser_motion_confirmed;
-                laser_obs.laser_x = red_laser_detection.center.x;
-                laser_obs.laser_y = red_laser_detection.center.y;
-                laser_aim_cmd = laser_aim_controller.update(laser_obs);
-                control_pitch = laser_aim_cmd.pitch;
-                control_yaw = laser_aim_cmd.yaw;
-                gimbal_command_active = laser_aim_cmd.active;
-                const bool gimbal_setpoint_changed =
-                    gimbal_command_active &&
-                    (control_pitch != last_pitch || control_yaw != last_yaw);
-                if (aim_follow_laser_motion_enable &&
-                    aim_follow_gimbal_enable && gimbal_setpoint_changed &&
-                    !laser_motion_current.empty()) {
-                    laser_motion_reference = laser_motion_current.clone();
-                    laser_motion_settle_remaining =
-                        aim_follow_laser_motion_settle_frames;
-                    laser_motion_sample_remaining =
-                        aim_follow_laser_motion_sample_frames;
-                    laser_motion_hold_remaining = 0;
-                    held_laser_motion_detection = RedLaserDetection();
-                }
-            } else {
-                gimbal_command_active = true;
-            }
+            gimbal_command_active = true;
             last_motor1 = control_motor1;
             last_motor2 = control_motor2;
             last_pitch = control_pitch;
@@ -1814,19 +1313,6 @@ int main(int argc, char *argv[])
                       << " ex=" << control_ex
                       << " ey=" << control_ey
                       << std::endl;
-            if (aim_follow_laser_aim_enable) {
-                std::cout << "[LASER AIM] state="
-                          << aim_follow::laserAimStateName(laser_aim_cmd.state)
-                          << " red=" << (red_laser_detection.valid ? 1 : 0)
-                          << " motion=" << (laser_motion_confirmed ? 1 : 0)
-                          << " red_xy=" << red_laser_detection.center.x
-                          << "," << red_laser_detection.center.y
-                          << " error=" << laser_aim_cmd.error_x
-                          << "," << laser_aim_cmd.error_y
-                          << " pitch=" << control_pitch
-                          << " yaw=" << control_yaw
-                          << std::endl;
-            }
         } else if (AIM_FOLLOW_CONTROL_ENABLE) {
             aim_follow::TargetObservation obs;
             obs.valid = false;
@@ -1841,12 +1327,6 @@ int main(int argc, char *argv[])
                 control_motor1 = 0;
                 control_motor2 = 0;
             }
-            if (aim_follow_laser_aim_enable) {
-                aim_follow::LaserAimObservation laser_obs;
-                laser_aim_cmd = laser_aim_controller.update(laser_obs);
-                control_pitch = laser_aim_cmd.pitch;
-                control_yaw = laser_aim_cmd.yaw;
-            }
             last_motor1 = control_motor1;
             last_motor2 = control_motor2;
             last_pitch = control_pitch;
@@ -1859,7 +1339,7 @@ int main(int argc, char *argv[])
                                       TRIGGER_STOP,
                                       CAN_CONTROL_ENABLE);
             }
-            if (aim_follow_gimbal_enable && !aim_follow_laser_aim_enable) {
+            if (aim_follow_gimbal_enable) {
                 send_gimbal_tracking_command(aim_follow_chassis_enable,
                                              control_pitch,
                                              control_yaw,
@@ -1873,14 +1353,10 @@ int main(int argc, char *argv[])
                       << std::endl;
         }
 
-        if (aim_follow_laser_debug_view) {
-            draw_red_laser_debug_view(cvmat_to_draw, aim_follow_laser_debug_gain);
-        }
-
         const int panel_x = 18;
         const int panel_y = 56;
         const int panel_w = 900;
-        const int panel_h = 168;
+        const int panel_h = 134;
         cv::rectangle(cvmat_to_draw,
                       cv::Rect(panel_x - 10, panel_y - 34, panel_w, panel_h),
                       cv::Scalar(0, 0, 0), cv::FILLED);
@@ -1903,29 +1379,16 @@ int main(int argc, char *argv[])
         draw_control_text(fmt::format("Target:{} ID:{} Distance:{} Error:{:+.2f}m",
                                       target_state, track_text, distance_text, control_distance_error_m),
                           0, control_target_valid ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 255, 255));
-        const std::string laser_state = aim_follow_laser_aim_enable
-            ? aim_follow::laserAimStateName(laser_aim_cmd.state)
-            : "OFF";
-        draw_control_text(fmt::format("Laser:{} red:{} peak={:.0f}/{} pitch={} yaw={} err={:+.2f},{:+.2f}",
-                                      laser_state,
-                                      red_laser_detection.valid ? "YES" : "NO",
-                                      red_laser_detection.peak_dominance,
-                                      red_laser_detection.peak_red,
-                                      control_pitch, control_yaw,
-                                      laser_aim_cmd.error_x, laser_aim_cmd.error_y),
-                          1, laser_aim_cmd.state == aim_follow::LaserAimState::Locked
-                              ? cv::Scalar(0, 255, 0)
-                              : cv::Scalar(255, 255, 255));
         draw_control_text(fmt::format("Chassis tracking: motor1={} motor2={}  steer:{} distance:{}",
                                       control_motor1, control_motor2,
                                       aim_follow_chassis_steer_enable ? "ON" : "OFF",
                                       aim_follow_distance_enable ? "ON" : "OFF"),
-                          2, cv::Scalar(255, 255, 255));
+                          1, cv::Scalar(255, 255, 255));
         draw_control_text(fmt::format("CAN output: {}  Gimbal:{}  Chassis:{}",
                                       is_can_dry_run_enabled() ? "DRYRUN(no write)" : "ACTIVE(write can0)",
                                       aim_follow_gimbal_enable ? "ON" : "OFF",
                                       aim_follow_chassis_enable ? "ON" : "OFF"),
-                          3, is_can_dry_run_enabled() ? cv::Scalar(0, 255, 255) : cv::Scalar(0, 0, 255));
+                          2, is_can_dry_run_enabled() ? cv::Scalar(0, 255, 255) : cv::Scalar(0, 0, 255));
 
         if (aim_follow_bytetrack_enable) {
             for (const auto &tracked_box : tracked_display_boxes) {
@@ -1963,25 +1426,6 @@ int main(int argc, char *argv[])
                             cv::Point(label_x + 5, label_top + text_size.height + 2),
                             cv::FONT_HERSHEY_DUPLEX, font_scale,
                             cv::Scalar(0, 0, 0), text_thickness, cv::LINE_AA);
-            }
-        }
-
-        if (aim_follow_laser_aim_enable && red_laser_detection.valid) {
-            const cv::Point laser_point(
-                static_cast<int>(std::round(red_laser_detection.center.x)),
-                static_cast<int>(std::round(red_laser_detection.center.y)));
-            cv::circle(cvmat_to_draw, laser_point, 12,
-                       cv::Scalar(255, 255, 255), 3, cv::LINE_AA);
-            cv::circle(cvmat_to_draw, laser_point, 8,
-                       cv::Scalar(0, 0, 255), 2, cv::LINE_AA);
-            if (has_control_target) {
-                const cv::Point target_center(
-                    static_cast<int>(std::round(control_display_box.x +
-                                                control_display_box.width * 0.5f)),
-                    static_cast<int>(std::round(control_display_box.y +
-                                                control_display_box.height * 0.5f)));
-                cv::line(cvmat_to_draw, laser_point, target_center,
-                         cv::Scalar(0, 255, 255), 2, cv::LINE_AA);
             }
         }
 
