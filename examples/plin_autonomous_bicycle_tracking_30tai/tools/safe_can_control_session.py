@@ -73,14 +73,14 @@ def write_status(path, state, active_motor1, active_motor2, active_until):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--bitrate", type=int, default=250000)
-    parser.add_argument("--max-rpm", type=int, default=45)
+    parser.add_argument("--max-rpm", type=int, default=50)
     parser.add_argument("--max-pulse", type=float, default=0.2)
     parser.add_argument("--socket", default="/tmp/plin_safe_can_control.sock")
     parser.add_argument("--status", default="/tmp/plin_safe_can_status.json")
     args = parser.parse_args()
 
-    if not 1 <= args.max_rpm <= 45:
-        raise SystemExit("max-rpm must be between 1 and 45")
+    if not 1 <= args.max_rpm <= 50:
+        raise SystemExit("max-rpm must be between 1 and 50")
     if not 0.02 <= args.max_pulse <= 0.2:
         raise SystemExit("max-pulse must be between 0.02 and 0.2 seconds")
 
