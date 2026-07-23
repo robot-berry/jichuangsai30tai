@@ -14,6 +14,7 @@ It is not a copy of the original PLin + SingleNet + HDMI demo project. Instead, 
 - complete integrated PLin example project for rebuilding on another computer
 - ByteTrack Icraft example project for multi-object tracking learning and later 30TAI adaptation
 - verified standalone autonomous bicycle-tracking project with prebuilt 3.33.1 board runtime
+- selected UAV/30TAI reference manuals and a supplementary-materials index
 - full compressed 30TAI/FPAI `deps` package for SDK headers and third-party libraries
 - 30TAI build, smoke-test, and log-analysis workflow
 
@@ -99,6 +100,9 @@ third_party/
 sdk/
   fpai_demo_package_26010502_deps_parts/
 
+supplementary_materials/
+  uav_reference_docs/
+
 tools/
   install_full_sdk_deps.ps1
   run_local_aim_follow_checks.ps1
@@ -135,6 +139,7 @@ docs/
   DETPOST_OPERATOR_LEARNING_NOTES_CN.md
   SETUP_ANOTHER_PC_CN.md
   TUNING_LOG_TEMPLATE.md
+  UAV_SUPPLEMENTARY_MATERIALS_CN.md
 
 STATUS.md
 ```
@@ -172,6 +177,20 @@ powershell -ExecutionPolicy Bypass -File .\tools\install_full_sdk_deps.ps1
 ```
 
 See `docs/BUILD_FULL_PROJECT_ON_ANOTHER_PC_CN.md` for the full Chinese rebuild guide.
+
+## UAV supplementary materials
+
+Selected manuals and small reference packages from `G:\UESTC\uav` are stored in:
+
+```text
+supplementary_materials/uav_reference_docs/
+```
+
+The original local folder also contains GB-level installers, images, and archives that are not suitable for direct GitHub commits. The upload scope and excluded large-file list are documented in:
+
+```text
+docs/UAV_SUPPLEMENTARY_MATERIALS_CN.md
+```
 
 ## DetPost reference model
 
